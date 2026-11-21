@@ -118,6 +118,12 @@ ok(await p.evaluate(() => [...document.querySelectorAll('.leaflet-map-pane *')].
 await p.locator('.compass').click()
 await p.waitForFunction(() => /rotate\(0deg\)/.test(document.querySelector('.compass svg')?.getAttribute('style') ?? ''), null, { timeout: 5000 })
 ok((await p.locator('.compass').getAttribute('class')).includes('north'), 'tap again: back to north-up')
+// Hide the map so the list gets the whole screen, then bring it back.
+await p.getByRole('button', { name: 'Hide map' }).click()
+ok(!(await p.locator('.map-area').isVisible()) && (await p.locator('.trail-card').first().isVisible()), 'Hide map: list fills the screen')
+await snap(p, `${OUT}/1b-phone-list-only.png`)
+await p.getByRole('button', { name: 'Show map' }).click()
+ok(await p.locator('.map-area').isVisible(), 'Show map brings the map back')
 await p.locator('.chip', { hasText: 'Runs' }).click()
 ok((await p.locator('.trail-name').allTextContents()).join() === 'Champagne Sports Trail Run 10k', 'running filter')
 await p.locator('.chip', { hasText: 'All' }).click()

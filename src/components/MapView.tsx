@@ -66,7 +66,8 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     mapRef.current = map
     setLeafletMap(map)
     bindMap(map)
-    const ro = new ResizeObserver(() => map.invalidateSize())
+    // While the map is hidden (list-only view) it has no size: keep the last view instead of shrinking to nothing.
+    const ro = new ResizeObserver(() => { if (el.current && el.current.clientWidth > 0 && el.current.clientHeight > 0) map.invalidateSize() })
     ro.observe(el.current!)
     return () => { ro.disconnect(); bindMap(null); map.remove() }
   }, [])

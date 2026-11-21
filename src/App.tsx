@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CircleDot, CloudDownload, Map as MapIcon, MapPin, Maximize2, PawPrint, Pause, Route as RouteIcon, Settings as SettingsIcon, Siren, WifiOff } from 'lucide-react'
+import { CircleDot, CloudDownload, List, Map as MapIcon, MapPin, Maximize2, PawPrint, Pause, Route as RouteIcon, Settings as SettingsIcon, Siren, WifiOff } from 'lucide-react'
 import MapView from './components/MapView'
 import TrailsTab from './components/TrailsTab'
 import PacksTab from './components/PacksTab'
@@ -58,6 +58,10 @@ function Main() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [sosOpen, setSosOpen] = useState(false)
   const [mapBig, setMapBig] = useState(false)
+  // Phones: hide the map so lists get the whole screen (remembered between visits).
+  const [listOnly, setListOnlyState] = useState(() => { try { return localStorage.getItem('trailz.listOnly') === '1' } catch { return false } })
+  const setListOnly = (v: boolean) => { setListOnlyState(v); setMapBig(false); try { localStorage.setItem('trailz.listOnly', v ? '1' : '0') } catch { /* ignore */ } }
+  const mapTab = tab === 'trails' || tab === 'record' || tab === 'offline'
   const [online, setOnline] = useState(navigator.onLine)
   const sharing = !!useShare().session
   const rec = useRec().walk
@@ -78,7 +82,7 @@ function Main() {
   const startTrail = (t: Trail) => { void startWalk({ activity: t.kind === 'running' ? 'run' : 'hike', trail: t }); setTab('record') }
 
   return (
-    <div className={`app tab-${tab} ${mapBig ? 'map-big' : ''}`}>
+    <div className={`app tab-${tab} ${mapBig ? 'map-big' : ''} ${listOnly && !mapBig ? 'list-only' : ''}`}>
       <header className="top">
         <div className="brand">
           <img src="./favicon.svg" alt="" width="30" height="30" />
@@ -115,9 +119,14 @@ function Main() {
         </aside>
         <section className="map-area">
           <MapView onSelect={select} />
-          <button className="map-expand" onClick={() => setMapBig((b) => !b)}>{mapBig ? <><MapIcon size={15} /> Show list</> : <><Maximize2 size={15} /> Bigger map</>}</button>
+          {!mapBig && <button className="map-expand" onClick={() => setMapBig(true)}><Maximize2 size={15} /> Bigger map</button>}
         </section>
       </main>
+      {mapTab && (
+        <button className="view-toggle" onClick={() => (mapBig ? setMapBig(false) : setListOnly(!listOnly))} aria-pressed={listOnly && !mapBig}>
+          {mapBig ? <><List size={16} strokeWidth={2.4} /> Show list</> : listOnly ? <><MapIcon size={16} strokeWidth={2.4} /> Show map</> : <><List size={16} strokeWidth={2.4} /> Hide map</>}
+        </button>
+      )}
       {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
       {sosOpen && <SosSheet onClose={() => setSosOpen(false)} />}
     </div>
