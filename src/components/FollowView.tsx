@@ -87,7 +87,7 @@ export default function FollowView({ topic, name, server }: { topic: string; nam
             </p>
             {stale && !stopped && <p className="tiny">No update for a while. They may be out of signal or have Spoor closed; mountain areas often have no coverage.</p>}
             <div className="row gap wrap">
-              {last.words && <a className="btn small" href={`https://what3words.com/${last.words}`} target="_blank" rel="noreferrer">Open in what3words</a>}
+              <a className="btn small" href={last.words ? `https://what3words.com/${last.words}` : `https://map.what3words.com/${last.lat},${last.lng}`} target="_blank" rel="noreferrer">{last.words ? 'Open in what3words' : 'Show the 3 words'}</a>
               <a className="btn small" href={`https://www.google.com/maps/search/?api=1&query=${last.lat},${last.lng}`} target="_blank" rel="noreferrer">Google Maps</a>
               <button className="btn small" onClick={() => map.current?.setView([last.lat, last.lng], 15)}>Centre map</button>
             </div>

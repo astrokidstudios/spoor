@@ -132,7 +132,7 @@ function Sharing({ onOpenSettings }: { onOpenSettings: () => void }) {
         {latest?.words ? (
           <a className="w3w" href={`https://what3words.com/${latest.words}`} target="_blank" rel="noreferrer">///{latest.words}</a>
         ) : latest ? (
-          <p className="coords">{latest.lat.toFixed(5)}, {latest.lng.toFixed(5)}</p>
+          <p className="coords">{latest.lat.toFixed(5)}, {latest.lng.toFixed(5)} <a className="small" href={`https://map.what3words.com/${latest.lat},${latest.lng}`} target="_blank" rel="noreferrer">3 words</a></p>
         ) : (
           <p className="coords muted">Getting your first fix…</p>
         )}
