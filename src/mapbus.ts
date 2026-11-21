@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type L from 'leaflet'
 import type { BBox, LatLng, Trail } from './db'
+import type { Member } from './group'
 import { readJSON, writeJSON } from './settings'
 
 /** Shared state between the map and the side panel. */
@@ -14,6 +15,8 @@ export interface MapState {
   follow: boolean
   /** A recorded walk to draw: its track, photo spots and the trail being followed. */
   track: { lines: LatLng[][]; photos: { id: string; lat: number; lng: number }[]; guide?: LatLng[][] } | null
+  /** People on your group walk. */
+  group?: Member[] | null
 }
 
 const VIEW_KEY = 'spoor.view'

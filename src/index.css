@@ -652,3 +652,19 @@ html.modal-open .panel-scroll { overflow: hidden; }
   .settings .grab { background: #cfd5ce; box-shadow: none; }
   .photo-view { padding: 0 12px; }
 }
+
+/* Group walks */
+.group-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow-sm); display: grid; gap: 10px; }
+.group-card .gap-s { display: inline-flex; align-items: center; gap: 6px; }
+.members { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.member { display: flex; gap: 10px; align-items: center; cursor: pointer; }
+.member.stale { opacity: 0.55; }
+.member-main { flex: 1; display: grid; gap: 4px; min-width: 0; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 800; flex: none; box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0,0,0,.25); }
+.bar.thin { height: 6px; }
+.group-pin { background: none; border: none; }
+.group-pin span { width: 28px; height: 28px; border-radius: 50%; color: #fff; display: grid; place-items: center; font: 800 13px/1 var(--font, sans-serif); border: 3px solid #fff; box-shadow: 0 1px 6px rgba(0,0,0,.35); }
+.join { max-width: 520px; margin: 0 auto; padding: 24px 16px 40px; display: grid; gap: 14px; }
+.join .route-thumb { background: var(--surface-2); border-radius: 16px; }
+.join-hero { display: flex; gap: 14px; align-items: center; }
+.join input { width: 100%; }

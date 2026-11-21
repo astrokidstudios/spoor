@@ -5,6 +5,7 @@ import { setMap } from './mapbus'
 import { shapeOf } from './trails'
 import { getSettings } from './settings'
 import { BG, isNative } from './share'
+import { endGroup, reportPosition } from './group'
 
 /** Recording walks: GPS track, time (pauses not counted), distance, climb, calories, photos and progress along a trail. */
 
@@ -189,7 +190,9 @@ export function onFix(f: Omit<WalkPoint, 'seg'>) {
   w.points.push(p)
   needsNewSeg = false
   markVisited(w, here)
-  set({ walk: { ...w }, progress: progressFor(w, here) })
+  const prog = progressFor(w, here)
+  set({ walk: { ...w }, progress: prog })
+  reportPosition({ lat: f.lat, lng: f.lng, acc: f.acc, pct: prog?.pct ?? null, doneKm: prog?.doneKm ?? null, walkedKm: w.distanceKm, status: 'recording' })
   if (Date.now() - lastSave > 5000) void save()
 }
 
@@ -232,7 +235,16 @@ export async function pauseWalk() {
   const next: Walk = { ...w, status: 'paused', activeMs: elapsedMs(w, now), resumedAt: undefined }
   needsNewSeg = true
   set({ walk: next })
+  reportStatus(next, 'paused')
   await db.walks.put(next)
+}
+
+/** Tell a group walk that I paused, carried on or finished. */
+function reportStatus(w: Walk, status: 'recording' | 'paused' | 'done') {
+  const p = w.points[w.points.length - 1]
+  if (!p) return
+  const prog = state.progress
+  reportPosition({ lat: p.lat, lng: p.lng, acc: p.acc, pct: prog?.pct ?? null, doneKm: prog?.doneKm ?? null, walkedKm: w.distanceKm, status })
 }
 
 export async function resumeWalk() {
@@ -240,6 +252,7 @@ export async function resumeWalk() {
   if (!w || w.status !== 'paused') return
   const next: Walk = { ...w, status: 'recording', resumedAt: Date.now() }
   set({ walk: next })
+  reportStatus(next, 'recording')
   await db.walks.put(next)
   startGps()
 }
@@ -250,6 +263,8 @@ export async function finishWalk() {
   stopGps()
   const now = Date.now()
   const done: Walk = { ...w, status: 'done', activeMs: elapsedMs(w, now), resumedAt: undefined, endedAt: now }
+  reportStatus(done, 'done')
+  endGroup()
   await db.walks.put(done)
   set({ walk: null, progress: null, gpsError: '' })
   return done

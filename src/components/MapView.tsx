@@ -5,12 +5,15 @@ import 'leaflet/dist/leaflet.css'
 import '../leaflet-global'
 import 'leaflet-rotate'
 import Compass from './Compass'
+import { memberColor } from '../group'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Trail } from '../db'
 import { bindMap, getMap, rememberView, savedView, setMap, useMapState } from '../mapbus'
 import { setSettings, useSettings } from '../settings'
 import { activeSource, makeTileLayer, SOURCES } from '../tiles'
 import { addPoint, getPlan, usePlan } from '../plan'
+
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 
 export const KIND_COLOR: Record<Trail['kind'], string> = { hiking: '#c2410c', walking: '#7c3aed', running: '#0e7490', path: '#a16207' }
 
@@ -23,10 +26,11 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
   const previewLayer = useRef<L.LayerGroup | null>(null)
   const trackLayer = useRef<L.LayerGroup | null>(null)
   const planLayer = useRef<L.LayerGroup | null>(null)
+  const groupLayer = useRef<L.LayerGroup | null>(null)
   const plan = usePlan()
   const watchRef = useRef<number | null>(null)
   const settings = useSettings()
-  const { trails, selectedId, me, preview, follow, track } = useMapState()
+  const { trails, selectedId, me, preview, follow, track, group } = useMapState()
   const packs = useLiveQuery(() => db.packs.toArray(), [])
   const [styleOpen, setStyleOpen] = useState(false)
   const [locErr, setLocErr] = useState('')
@@ -44,6 +48,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     previewLayer.current = L.layerGroup().addTo(map)
     trackLayer.current = L.layerGroup().addTo(map)
     planLayer.current = L.layerGroup().addTo(map)
+    groupLayer.current = L.layerGroup().addTo(map)
     meLayer.current = L.layerGroup().addTo(map)
     const report = () => {
       const b = map.getBounds()
@@ -154,6 +159,18 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
       g.addLayer(L.circleMarker(p, { radius: i === 0 || end ? 7 : 5, color: '#fff', weight: 3, fillColor: i === 0 ? '#16a34a' : end ? '#9333ea' : '#6b21a8', fillOpacity: 1, interactive: false }))
     })
   }, [plan.active, plan.legs, plan.points])
+
+  // People on my group walk.
+  useEffect(() => {
+    const g = groupLayer.current!
+    g.clearLayers()
+    for (const m of group ?? []) {
+      if (m.me || m.status === 'left') continue
+      const stale = Date.now() - m.t > 3 * 60000 || m.status === 'done'
+      const icon = L.divIcon({ className: 'group-pin', html: `<span style="background:${memberColor(m.id)};opacity:${stale ? 0.6 : 1}">${esc(m.name.slice(0, 1).toUpperCase())}</span>`, iconSize: [28, 28], iconAnchor: [14, 14] })
+      g.addLayer(L.marker([m.lat, m.lng], { icon, zIndexOffset: 500 }).bindTooltip(`${esc(m.name)}${m.pct != null ? ` · ${m.pct}%` : ''}`, { direction: 'top', offset: [0, -14] }))
+    }
+  }, [group])
 
   // My location.
   useEffect(() => {

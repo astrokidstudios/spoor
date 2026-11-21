@@ -8,6 +8,7 @@ import { useSettings } from '../settings'
 import { tripOf } from '../trails'
 import { Camera, Check, ChevronLeft, Flag, Footprints, Images, MountainSnow, Pause, PersonStanding, Play, Square, Trash2, TriangleAlert, Trophy } from 'lucide-react'
 import RouteThumb from './RouteThumb'
+import GroupCard from './GroupCard'
 
 export default function RecordTab({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { walk } = useRec()
@@ -159,6 +160,7 @@ function ActiveWalk({ walk, onFinished }: { walk: Walk; onFinished: (w: Walk) =>
             : <p className="small good on-trail"><Check size={16} strokeWidth={3} /> On the trail</p>)}
         </div>
       )}
+      <GroupCard walk={walk} />
       {gpsError && <p className="note small">{gpsError}</p>}
       {!walk.points.length && !gpsError && recording && <p className="muted small">Waiting for a GPS fix…</p>}
       <div className="rec-controls">

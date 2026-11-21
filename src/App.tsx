@@ -6,6 +6,8 @@ import PacksTab from './components/PacksTab'
 import ShareTab from './components/ShareTab'
 import WildlifeTab from './components/WildlifeTab'
 import FollowView from './components/FollowView'
+import JoinView from './components/JoinView'
+import { parseInvite, resumeGroup } from './group'
 import Settings from './components/Settings'
 import SosSheet from './components/SosSheet'
 import RecordTab from './components/RecordTab'
@@ -42,11 +44,16 @@ export default function App() {
   }, [])
   const follow = parseFollow(hash)
   if (follow) return <FollowView {...follow} />
+  const invite = hash.startsWith('#/join/') ? parseInvite(hash) : null
+  if (invite) return <JoinView invite={invite} />
   return <Main />
 }
 
 function Main() {
-  const [tab, setTab] = useState<Tab>('trails')
+  const [tab, setTab] = useState<Tab>(() => {
+    try { const t = sessionStorage.getItem('spoor.tab'); sessionStorage.removeItem('spoor.tab'); if (t === 'record') return 'record' } catch { /* ignore */ }
+    return 'trails'
+  })
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [sosOpen, setSosOpen] = useState(false)
   const [mapBig, setMapBig] = useState(false)
@@ -58,6 +65,7 @@ function Main() {
     void tidyPacks()
     resumeSharing()
     void resumeRecording()
+    resumeGroup()
     const on = () => setOnline(navigator.onLine)
     window.addEventListener('online', on)
     window.addEventListener('offline', on)
