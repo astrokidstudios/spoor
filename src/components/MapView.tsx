@@ -122,11 +122,12 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     if (!track) return
     const urls: string[] = []
     if (track.guide) {
-      g.addLayer(L.polyline(track.guide, { color: '#fff', weight: 9, opacity: 0.8, interactive: false }))
-      g.addLayer(L.polyline(track.guide, { color: '#c2410c', weight: 5, opacity: 0.8, interactive: false }))
+      // The trail ahead stays faint, so the line you've walked (bright blue, on top) stands out.
+      g.addLayer(L.polyline(track.guide, { color: '#fff', weight: 8, opacity: 0.45, interactive: false }))
+      g.addLayer(L.polyline(track.guide, { color: '#c2410c', weight: 4, opacity: 0.45, dashArray: '2 8', lineCap: 'round', interactive: false }))
     }
-    g.addLayer(L.polyline(track.lines, { color: '#fff', weight: 8, opacity: 0.9, interactive: false }))
-    g.addLayer(L.polyline(track.lines, { color: '#2563eb', weight: 5, interactive: false }))
+    g.addLayer(L.polyline(track.lines, { color: '#fff', weight: 9, opacity: 0.95, interactive: false }))
+    g.addLayer(L.polyline(track.lines, { color: '#2563eb', weight: 6, interactive: false }))
     const first = track.lines.find((l) => l.length)?.[0]
     if (first) g.addLayer(L.circleMarker(first, { radius: 6, color: '#fff', weight: 3, fillColor: '#16a34a', fillOpacity: 1 }).bindTooltip('Start'))
     for (const ph of track.photos) {
@@ -179,7 +180,12 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     if (!me) return
     g.addLayer(L.circle([me.lat, me.lng], { radius: me.acc, color: '#2563eb', weight: 1, fillOpacity: 0.1, interactive: false }))
     g.addLayer(L.circleMarker([me.lat, me.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }).bindTooltip('You'))
-    if (follow) mapRef.current?.panTo([me.lat, me.lng])
+    const map = mapRef.current
+    if (follow && map) {
+      // While recording, keep you in view close enough to see the path you're on.
+      if (getMap().track && map.getZoom() < 15) map.setView([me.lat, me.lng], 15)
+      else map.panTo([me.lat, me.lng])
+    }
   }, [me, follow])
 
   useEffect(() => () => { if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current) }, [])

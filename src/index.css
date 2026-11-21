@@ -622,6 +622,19 @@ svg.lucide { flex: 0 0 auto; }
 .new-group { display: grid; gap: 8px; }
 .new-group-btn { justify-self: start; color: var(--brand); }
 .sheet-foot { display: flex; gap: 8px; }
+/* Save-to-group: a full-screen page on phones so the keyboard never fights a half sheet */
+.fullsheet-back { position: fixed; inset: 0; z-index: 2000; background: var(--surface); display: flex; justify-content: center; animation: fade 0.2s ease both; }
+.fullsheet { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--surface); padding-top: env(safe-area-inset-top); }
+.fullsheet-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.fullsheet-head h3 { margin: 0; }
+.fullsheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 14px 16px; display: grid; align-content: start; gap: 12px; }
+.fullsheet-body .group-list { max-height: none; overflow: visible; }
+.fullsheet-foot { display: flex; gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); }
+.fullsheet .one-line { max-width: 100%; }
+@media (min-width: 761px) {
+  .fullsheet-back { background: rgba(10, 14, 12, 0.45); align-items: center; padding: 16px; }
+  .fullsheet { width: min(520px, 100%); height: auto; max-height: 85vh; border-radius: 24px; overflow: hidden; box-shadow: var(--shadow-lg); padding-top: 0; }
+}
 .group-chips .chip { font-size: 0.8rem; padding: 6px 11px; }
 .chip-n { font-size: 0.72rem; opacity: 0.7; margin-left: 2px; }
 .small-chip { font-size: 0.78rem; padding: 5px 10px; }

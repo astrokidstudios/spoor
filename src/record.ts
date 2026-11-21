@@ -225,6 +225,7 @@ export async function startWalk(opts: { activity: Activity; trail?: Trail | null
   await loadTrail(w)
   set({ progress: progressFor(w) })
   startGps()
+  setMap({ follow: true }) // the map follows you while you walk (drag it to look around; the locate button follows again)
   if (t) void goLiveForFollowers(t).catch(() => {})
   return w
 }
@@ -283,7 +284,7 @@ export async function resumeRecording() {
   await loadTrail(w)
   const last = w.points[w.points.length - 1]
   set({ progress: progressFor(w, last ? [last.lat, last.lng] : undefined) })
-  if (w.status === 'recording') startGps()
+  if (w.status === 'recording') { startGps(); setMap({ follow: true }) }
   // A walk started before followers could see it: put it live now (only if it's on a trail and not already in a group).
   const t = w.trailId ? await db.trails.get(w.trailId) : undefined
   if (t && (w.status === 'recording' || w.status === 'paused')) setTimeout(() => void goLiveForFollowers(t).catch(() => {}), 1500)

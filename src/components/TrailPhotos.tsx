@@ -1,9 +1,17 @@
-import { ChevronLeft, ChevronRight, ExternalLink, ImageOff, Images, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, ImageOff, Images, Search, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { Trail } from '../db'
 import { fmtKm } from '../geo'
 import { trailPhotos, type TrailPhoto } from '../photos'
 import './trail-photos.css'
+
+/** Google Images search for the trail, e.g. "Blue Grotto Trail Magaliesberg hike". */
+export function googleImagesUrl(t: Trail) {
+  const area = t.tags['is_in'] || t.tags['addr:city'] || t.tags['operator'] || ''
+  const hikey = /\b(trail|hike|walk|route|path|pad|roete)\b/i.test(t.name) ? '' : ' hike'
+  const q = `${t.name}${area ? ` ${area}` : ''}${hikey}`.replace(/\s+/g, ' ').trim()
+  return `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`
+}
 
 /** A swipeable strip of photos taken along and around a trail, with a full-screen viewer. */
 export default function TrailPhotos({ trail }: { trail: Trail }) {
@@ -28,11 +36,12 @@ export default function TrailPhotos({ trail }: { trail: Trail }) {
         <h3 className="section-h"><Images size={15} /> Photos along the way</h3>
         {photos && photos.length > 0 && <span className="muted tiny">{photos.length}</span>}
       </div>
+      <a className="btn small tp-google" href={googleImagesUrl(trail)} target="_blank" rel="noreferrer"><Search size={15} /> See photos on Google Images <ExternalLink size={13} /></a>
       {!photos && !err && (
         <div className="tp-strip" aria-busy="true">{[0, 1, 2].map((i) => <span key={i} className="tp-thumb tp-skel" />)}</div>
       )}
       {err && <p className="note small">{err}</p>}
-      {photos && !photos.length && <p className="note small tp-empty"><ImageOff size={16} /> No photos shared from around this trail yet.</p>}
+      {photos && !photos.length && <p className="note small tp-empty"><ImageOff size={16} /> No open-licence photos here yet. Try Google Images above.</p>}
       {photos && photos.length > 0 && (
         <div className="tp-strip">
           {(all ? photos : photos.slice(0, 5)).map((p, i) => (

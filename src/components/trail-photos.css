@@ -26,3 +26,5 @@
 .tp-cap b { font-size: 0.95rem; }
 .tp-cap span { opacity: 0.8; }
 .tp-cap a { color: #fff; opacity: 0.85; display: inline-flex; align-items: center; gap: 4px; width: fit-content; }
+
+.tp-google { justify-self: start; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
