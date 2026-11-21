@@ -38,7 +38,7 @@ export default function TrailsTab({ onDownload }: { onDownload: () => void }) {
       let list: Trail[]
       if (navigator.onLine === false) throw new Error('offline')
       try {
-        list = await fetchTrails(b, ac.signal)
+        list = await fetchTrails(b, ac.signal, (m) => setMsg(m))
       } catch (e) {
         if ((e as Error).message.startsWith('Zoom in')) throw e
         list = await offlineTrails(b)
@@ -51,6 +51,7 @@ export default function TrailsTab({ onDownload }: { onDownload: () => void }) {
       setMap({ trails: list, selectedId: null })
       setSearchedFor(JSON.stringify(b))
       setStatus('idle')
+      if (list.length) setMsg((m) => (m.startsWith('Trail server is busy') ? '' : m))
       if (!list.length) setMsg('No mapped trails here yet. Try moving or zooming out the map.')
     } catch (e) {
       if (ac.signal.aborted) return

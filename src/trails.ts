@@ -2,7 +2,7 @@ import type { BBox, LatLng, Trail, TrailKind } from './db'
 import { db } from './db'
 import { bboxOf, bboxSizeKm, haversineKm, intersects, lineKm, samplePoints } from './geo'
 
-const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']
 
 /** Biggest area we search in one go (km across), so Overpass answers quickly. */
 export const MAX_SEARCH_KM = 45
@@ -27,17 +27,30 @@ function query(b: BBox) {
 out tags geom;`
 }
 
-async function overpass(q: string, signal?: AbortSignal) {
+/** The public trail servers are often busy, so try each mirror (with a time limit), then go round once more. */
+async function overpass(q: string, signal?: AbortSignal, onRetry?: (msg: string) => void) {
   let lastErr: unknown
-  for (const url of OVERPASS) {
-    try {
-      const res = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'content-type': 'application/x-www-form-urlencoded' }, signal })
-      if (!res.ok) throw new Error(`Trail server busy (${res.status})`)
-      return (await res.json()) as { elements: OsmElement[] }
-    } catch (e) {
-      if (signal?.aborted) throw e
-      lastErr = e
+  for (let round = 0; round < 2; round++) {
+    for (const url of OVERPASS) {
+      if (signal?.aborted) throw new Error('cancelled')
+      const ac = new AbortController()
+      const stop = () => ac.abort()
+      signal?.addEventListener('abort', stop)
+      const t = setTimeout(stop, 35000)
+      try {
+        const res = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'content-type': 'application/x-www-form-urlencoded' }, signal: ac.signal })
+        if (!res.ok) throw new Error(`Trail server busy (${res.status})`)
+        return (await res.json()) as { elements: OsmElement[] }
+      } catch (e) {
+        if (signal?.aborted) throw e
+        lastErr = e
+        onRetry?.('Trail server is busy, trying another one…')
+      } finally {
+        clearTimeout(t)
+        signal?.removeEventListener('abort', stop)
+      }
     }
+    await new Promise((r) => setTimeout(r, 2000))
   }
   throw lastErr instanceof Error ? lastErr : new Error('Could not reach the trail server')
 }
@@ -135,10 +148,10 @@ export function estimateHours(t: Trail) {
 
 export const KIND_LABEL: Record<TrailKind, string> = { hiking: 'Hiking route', walking: 'Walking route', running: 'Running route', path: 'Trail' }
 
-export async function fetchTrails(b: BBox, signal?: AbortSignal) {
+export async function fetchTrails(b: BBox, signal?: AbortSignal, onRetry?: (msg: string) => void) {
   const { w, h } = bboxSizeKm(b)
   if (w > MAX_SEARCH_KM * 1.5 || h > MAX_SEARCH_KM * 1.5) throw new Error('Zoom in a little to search for trails in this area.')
-  const data = await overpass(query(b), signal)
+  const data = await overpass(query(b), signal, onRetry)
   return parseTrails(data.elements)
 }
 
