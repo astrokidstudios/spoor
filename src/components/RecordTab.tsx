@@ -102,6 +102,7 @@ function useTrackOnMap(walk: Walk, follow: boolean) {
         lines: linesOf(walk),
         photos: (photos ?? []).filter((p) => p.lat != null).map((p) => ({ id: p.id, lat: p.lat!, lng: p.lng! })),
         guide,
+        live: follow,
       },
       ...(follow ? {} : { selectedId: null }),
     })

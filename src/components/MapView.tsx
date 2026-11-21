@@ -27,6 +27,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
   const previewLayer = useRef<L.LayerGroup | null>(null)
   const trackLayer = useRef<L.LayerGroup | null>(null)
   const planLayer = useRef<L.LayerGroup | null>(null)
+  const followedTrack = useRef(false)
   const groupLayer = useRef<L.LayerGroup | null>(null)
   const plan = usePlan()
   const watchRef = useRef<number | null>(null)
@@ -122,15 +123,29 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     g.clearLayers()
     if (!track) return
     const urls: string[] = []
+    // The trail you're following: muted, so the path you've actually walked stands out on top of it.
     if (track.guide) {
-      // The trail ahead stays faint, so the line you've walked (bright blue, on top) stands out.
-      g.addLayer(L.polyline(track.guide, { color: '#fff', weight: 8, opacity: 0.45, interactive: false }))
+      g.addLayer(L.polyline(track.guide, { color: '#fff', weight: 8, opacity: 0.55, interactive: false }))
       g.addLayer(L.polyline(track.guide, { color: '#c2410c', weight: 4, opacity: 0.45, dashArray: '2 8', lineCap: 'round', interactive: false }))
     }
+    // Where you've walked: bright, with a soft glow and a white edge.
+    g.addLayer(L.polyline(track.lines, { color: '#38bdf8', weight: 14, opacity: 0.25, interactive: false }))
     g.addLayer(L.polyline(track.lines, { color: '#fff', weight: 9, opacity: 0.95, interactive: false }))
-    g.addLayer(L.polyline(track.lines, { color: '#2563eb', weight: 6, interactive: false }))
+    g.addLayer(L.polyline(track.lines, { color: '#0ea5e9', weight: 5.5, interactive: false }))
     const first = track.lines.find((l) => l.length)?.[0]
     if (first) g.addLayer(L.circleMarker(first, { radius: 6, color: '#fff', weight: 3, fillColor: '#16a34a', fillOpacity: 1 }).bindTooltip('Start'))
+    // You, at the end of the line, while the walk is live; the map keeps you in view until you drag it.
+    const lastLine = [...track.lines].reverse().find((l) => l.length)
+    const here = lastLine?.[lastLine.length - 1]
+    if (track.live && here) {
+      g.addLayer(L.marker(here, { interactive: false, icon: L.divIcon({ className: 'you-dot', html: '<span></span>', iconSize: [22, 22] }) }))
+      const map = mapRef.current
+      if (map) {
+        if (!followedTrack.current) { followedTrack.current = true; map.setView(here, Math.max(map.getZoom(), 15)); setMap({ follow: true }) }
+        else if (getMap().follow) map.panTo(here, { animate: true })
+      }
+    }
+    if (!track.live) followedTrack.current = false
     for (const ph of track.photos) {
       const m = L.marker([ph.lat, ph.lng], { icon: L.divIcon({ className: 'photo-pin', html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>', iconSize: [32, 32] }) })
       m.bindPopup('<div class="photo-pop">Loading…</div>', { maxWidth: 260 })

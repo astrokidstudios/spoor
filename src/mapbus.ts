@@ -14,7 +14,7 @@ export interface MapState {
   preview: BBox | null // area about to be downloaded
   follow: boolean
   /** A recorded walk to draw: its track, photo spots and the trail being followed. */
-  track: { lines: LatLng[][]; photos: { id: string; lat: number; lng: number }[]; guide?: LatLng[][] } | null
+  track: { lines: LatLng[][]; photos: { id: string; lat: number; lng: number }[]; guide?: LatLng[][]; live?: boolean } | null
   /** People on your group walk. */
   group?: Member[] | null
 }
