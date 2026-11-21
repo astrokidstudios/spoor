@@ -1,0 +1,225 @@
+import { useSyncExternalStore } from 'react'
+import { getSettings, PUBLIC_URL, readJSON, writeJSON } from './settings'
+
+/**
+ * Live location sharing.
+ * Every few minutes we read the GPS, turn it into a what3words address (with your own API key),
+ * and post it to a private, unguessable ntfy.sh topic. Your contact opens a link to Spoor's
+ * follow page, which reads that topic. No accounts or server of our own are needed.
+ */
+
+export interface ShareSession {
+  topic: string
+  contactName: string
+  contactPhone: string
+  startedAt: number
+  everyMin: number
+}
+
+export interface Ping {
+  t: number // time of the GPS fix
+  lat: number
+  lng: number
+  acc: number
+  words?: string
+  sent: boolean
+  error?: string
+}
+
+interface State {
+  session: ShareSession | null
+  pings: Ping[]
+  busy: boolean
+  lastError: string
+  wakeLock: boolean
+}
+
+const KEY = 'spoor.share'
+let state: State = { session: readJSON<ShareSession | null>(KEY, null), pings: readJSON<Ping[]>(KEY + '.pings', []), busy: false, lastError: '', wakeLock: false }
+const listeners = new Set<() => void>()
+function set(patch: Partial<State>) {
+  state = { ...state, ...patch }
+  writeJSON(KEY, state.session)
+  writeJSON(KEY + '.pings', state.pings.slice(-50))
+  listeners.forEach((l) => l())
+}
+export const useShare = () => useSyncExternalStore((l) => (listeners.add(l), () => listeners.delete(l)), () => state)
+
+const randomTopic = () => {
+  const a = new Uint8Array(16)
+  crypto.getRandomValues(a)
+  return 'spoor-' + [...a].map((b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('')
+}
+
+export function followLink(s: ShareSession) {
+  const name = getSettings().myName.trim()
+  const server = getSettings().ntfyServer.replace(/\/$/, '')
+  const params = new URLSearchParams()
+  if (name) params.set('n', name)
+  if (server !== 'https://ntfy.sh') params.set('s', server)
+  const q = params.toString()
+  return `${PUBLIC_URL}#/follow/${s.topic}${q ? '?' + q : ''}`
+}
+
+export function getPosition(): Promise<GeolocationPosition> {
+  return new Promise((ok, fail) => {
+    if (!('geolocation' in navigator)) return fail(new Error('Location is not available on this device.'))
+    navigator.geolocation.getCurrentPosition(ok, (e) => fail(new Error(e.code === 1 ? 'Location permission is off for Spoor.' : 'Could not get a GPS fix.')), {
+      enableHighAccuracy: true, timeout: 25000, maximumAge: 60000,
+    })
+  })
+}
+
+export async function toWords(lat: number, lng: number): Promise<string | undefined> {
+  const key = getSettings().w3wKey.trim()
+  if (!key) return undefined
+  const res = await fetch(`https://api.what3words.com/v3/convert-to-3wa?coordinates=${lat},${lng}&language=en&key=${encodeURIComponent(key)}`)
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || !data.words) throw new Error(data?.error?.message || `what3words error ${res.status}`)
+  return data.words as string
+}
+
+export function formatMessage(p: Ping) {
+  const lines = []
+  if (p.words) lines.push(`///${p.words}`)
+  lines.push(`${p.lat.toFixed(5)}, ${p.lng.toFixed(5)} (±${Math.round(p.acc)} m)`)
+  lines.push(`Fix ${new Date(p.t).toISOString()}`)
+  return lines.join('\n')
+}
+
+async function publish(s: ShareSession, p: Ping, title?: string) {
+  const server = getSettings().ntfyServer.replace(/\/$/, '')
+  const name = getSettings().myName.trim() || 'Your hiker'
+  const res = await fetch(server + '/', {
+    method: 'POST',
+    body: JSON.stringify({
+      topic: s.topic,
+      title: title ?? `${name} – ${p.words ? '///' + p.words : 'location update'}`,
+      message: formatMessage(p),
+      tags: ['round_pushpin'],
+      click: followLink(s),
+    }),
+  })
+  if (!res.ok) throw new Error(`Could not send (${res.status})`)
+}
+
+/** Take a GPS fix and send it. With no signal it fails quietly and the timer tries again 30 s later. */
+export async function sendNow() {
+  const s = state.session
+  if (!s || state.busy) return
+  set({ busy: true })
+  let ping: Ping | null = null
+  try {
+    const pos = await getPosition()
+    ping = { t: pos.timestamp || Date.now(), lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy, sent: false }
+    try {
+      ping.words = await toWords(ping.lat, ping.lng)
+    } catch (e) {
+      ping.error = `what3words: ${(e as Error).message}`
+    }
+    await publish(s, ping)
+    ping.sent = true
+    set({ lastError: ping.error ?? '' })
+  } catch (e) {
+    const msg = navigator.onLine === false ? 'No signal. Will retry on the next update.' : (e as Error).message
+    if (ping) ping.error = msg
+    set({ lastError: msg })
+  } finally {
+    set({ busy: false, pings: ping ? [...state.pings, ping] : state.pings })
+  }
+}
+
+let timer: ReturnType<typeof setInterval> | null = null
+let watchId: number | null = null
+let lock: WakeLockSentinel | null = null
+
+async function keepAwake() {
+  try {
+    if (state.session && document.visibilityState === 'visible' && 'wakeLock' in navigator && !lock) {
+      lock = await navigator.wakeLock.request('screen')
+      lock.addEventListener('release', () => { lock = null; set({ wakeLock: false }) })
+      set({ wakeLock: true })
+    }
+  } catch { /* not supported or refused */ }
+}
+
+function due() {
+  const s = state.session
+  if (!s) return false
+  const last = [...state.pings].reverse().find((p) => p.sent)
+  return !last || Date.now() - last.t >= s.everyMin * 60000 - 15000
+}
+
+function tick() {
+  if (due()) void sendNow()
+}
+
+/** Resume an active share after the app is reopened. */
+export function resumeSharing() {
+  if (!state.session || timer) return
+  timer = setInterval(tick, 30000)
+  // Keeping a GPS watch running gives faster, more accurate fixes and helps the app stay active.
+  if ('geolocation' in navigator) watchId = navigator.geolocation.watchPosition(() => {}, () => {}, { enableHighAccuracy: true, maximumAge: 60000 })
+  void keepAwake()
+  tick()
+}
+
+export async function startSharing(contactName: string, contactPhone: string) {
+  const session: ShareSession = { topic: randomTopic(), contactName, contactPhone, startedAt: Date.now(), everyMin: getSettings().shareEveryMin || 5 }
+  set({ session, pings: [], lastError: '' })
+  resumeSharing()
+  return session
+}
+
+export async function stopSharing() {
+  const s = state.session
+  if (timer) clearInterval(timer)
+  timer = null
+  if (watchId != null) navigator.geolocation.clearWatch(watchId)
+  watchId = null
+  await lock?.release().catch(() => {})
+  lock = null
+  if (s) {
+    const last = [...state.pings].reverse().find((p) => p.sent)
+    if (last) await publish(s, { ...last, t: Date.now() }, `${getSettings().myName.trim() || 'Your hiker'} stopped sharing`).catch(() => {})
+  }
+  set({ session: null, wakeLock: false })
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.session) {
+      void keepAwake()
+      tick()
+    }
+  })
+  window.addEventListener('online', () => state.session && tick())
+}
+
+// ---------- Following (the contact's side) ----------
+
+export interface Update { t: number; sentAt: number; lat: number; lng: number; acc: number; words?: string; title: string; stopped: boolean }
+
+export function parseUpdate(m: { time: number; title?: string; message?: string }): Update | null {
+  const msg = m.message ?? ''
+  const c = msg.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)(?:\s*\(±(\d+)\s*m\))?/)
+  if (!c) return null
+  const w = msg.match(/\/\/\/([^\s/]+\.[^\s/]+\.[^\s/]+)/)
+  const f = msg.match(/Fix (\d{4}-\d\d-\d\dT[\d:.]+Z)/)
+  const title = m.title ?? ''
+  return {
+    t: f ? Date.parse(f[1]) : m.time * 1000,
+    sentAt: m.time * 1000,
+    lat: parseFloat(c[1]), lng: parseFloat(c[2]), acc: c[3] ? parseInt(c[3]) : 0,
+    words: w?.[1], title, stopped: /stopped sharing/i.test(title),
+  }
+}
+
+export async function fetchUpdates(topic: string, server = 'https://ntfy.sh'): Promise<Update[]> {
+  const res = await fetch(`${server.replace(/\/$/, '')}/${encodeURIComponent(topic)}/json?poll=1&since=24h`)
+  if (!res.ok) throw new Error(`Could not load updates (${res.status})`)
+  const text = await res.text()
+  return text.split('\n').filter(Boolean).map((l) => {
+    try { return JSON.parse(l) } catch { return null }
+  }).filter((m) => m && m.event === 'message').map(parseUpdate).filter((u): u is Update => !!u)
+}

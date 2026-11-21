@@ -1,0 +1,97 @@
+{
+  "name": "spoor",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Spoor: find trails, hike offline, share where you are.",
+  "author": "Josh",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "icons": "node scripts/make-icons.mjs",
+    "desktop": "npm run build && electron .",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac"
+  },
+  "build": {
+    "appId": "app.spoor.trails",
+    "productName": "Spoor",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Spoor-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "Spoor-Portable-${version}.exe"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "build/icon-1024.png",
+      "category": "public.app-category.navigation",
+      "extendInfo": {
+        "NSLocationWhenInUseUsageDescription": "Spoor uses your location to show you on the trail map and to share it with your contact.",
+        "NSLocationUsageDescription": "Spoor uses your location to show you on the trail map and to share it with your contact."
+      }
+    }
+  },
+  "dependencies": {
+    "@fontsource-variable/nunito": "^5.3.0",
+    "@fontsource/fredoka": "^5.3.0",
+    "dexie": "^4.4.7",
+    "dexie-react-hooks": "^4.4.0",
+    "leaflet": "^1.9.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0",
+    "oxlint": "^1.94.0",
+    "playwright-core": "^1.65.1",
+    "sharp": "^0.35.5",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.8",
+    "vite-plugin-pwa": "^2.0.0"
+  }
+}
