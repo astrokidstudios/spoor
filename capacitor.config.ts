@@ -4,7 +4,7 @@ const config: CapacitorConfig = {
   appId: 'app.spoor.trails',
   appName: 'Spoor',
   webDir: 'dist',
-  backgroundColor: '#1d4a3a',
+  backgroundColor: '#f5f6f3',
   ios: { contentInset: 'never' },
 }
 

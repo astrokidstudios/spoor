@@ -388,7 +388,8 @@ svg.lucide { flex: 0 0 auto; }
   .map-area { flex-basis: 42vh; }
   .panel { position: relative; z-index: 950; margin-top: -18px; border-radius: 20px 20px 0 0; box-shadow: 0 -10px 30px rgba(16, 24, 20, 0.12); }
   .panel::before { content: ''; position: absolute; top: 7px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 4px; background: #cfd5ce; z-index: 2; }
-  .panel-scroll { border-radius: 20px 20px 0 0; padding-top: 8px; }
+  .panel-scroll { margin-top: 16px; padding-top: 0; }
+  .tab-share .panel-scroll, .tab-wildlife .panel-scroll { margin-top: 0; }
   .map-area .leaflet-bottom { bottom: 18px; }
   .tab-share .panel, .tab-wildlife .panel { margin-top: 0; border-radius: 0; box-shadow: none; }
   .tab-share .panel::before, .tab-wildlife .panel::before { display: none; }

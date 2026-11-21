@@ -27,7 +27,7 @@ export default defineConfig({
         name: 'Spoor – trails, offline maps & wildlife',
         short_name: 'Spoor',
         description: 'Find walking, hiking and trail-running routes, keep maps and wildlife offline, and share where you are.',
-        theme_color: '#1d4a3a',
+        theme_color: '#ffffff',
         background_color: '#f3eee3',
         display: 'standalone',
         start_url: './',
