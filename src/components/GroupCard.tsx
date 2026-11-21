@@ -4,7 +4,7 @@ import { db, type Walk } from '../db'
 import { fmtKm } from '../geo'
 import { getGroup, inviteLink, leaveGroup, memberColor, startGroup, useGroup, type Member } from '../group'
 import { flyTo } from '../mapbus'
-import { announceHike, invitedToMyHike, inviteToHike, useAccount } from '../cloud'
+import { announceHike, invitedToMyHike, inviteToHike, lastAnnounceError, useAccount } from '../cloud'
 import { InviteFollowers } from './Friends'
 
 const ago = (t: number) => {
@@ -73,7 +73,9 @@ export default function GroupCard({ walk }: { walk: Walk }) {
         <b className="row gap-s"><Users size={17} /> Group walk</b>
         <span className="muted small">{members.length || 1} {members.length === 1 || !members.length ? 'person' : 'people'}</span>
       </div>
-      {session.host && account && <p className="small live-note"><span className="dot" /> Live for your followers: they can see this walk and join. Tap Leave group to keep it private.</p>}
+      {session.host && account && (lastAnnounceError()
+        ? <p className="small error">Couldn't list this walk for your followers: {lastAnnounceError()}</p>
+        : <p className="small live-note"><span className="dot" /> Live for your followers: they can see this walk and join. Tap Leave group to keep it private.</p>)}
       {!others.length && <p className="muted small">Nobody else yet. Send the link to your friends; they'll pop up here and on the map when they start.</p>}
       <ul className="members">
         {members.map((m) => <MemberRow key={m.id} m={m} myKm={myKm} />)}

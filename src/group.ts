@@ -3,7 +3,7 @@ import { db, type LatLng, type Trail, type TrailKind } from './db'
 import { bboxOf, lineKm } from './geo'
 import { setMap } from './mapbus'
 import { getSettings, PUBLIC_URL, readJSON, writeJSON } from './settings'
-import { announceHike, endMyHike, myId } from './cloud'
+import { announceHike, lastAnnounceError, endMyHike, myId } from './cloud'
 
 /**
  * Group walks: everyone on one walk follows the same trail and sees each other's position and progress.
@@ -134,9 +134,17 @@ export function startGroup(t: Trail): GroupSession {
  * "Live now" for followers, so they can see you're out and join. Skipped if you joined someone else's walk.
  */
 export async function goLiveForFollowers(t: Trail) {
-  if (!myId() || !getSettings().liveToFollowers || state.session) return
-  const s = startGroup(t)
-  await announceHike(s.topic, inviteLink(s, t), t.name)
+  if (!getSettings().liveToFollowers) return
+  // Sign-in is restored in the background after the app opens: give it a moment.
+  for (let i = 0; i < 30 && !myId(); i++) await new Promise((ok) => setTimeout(ok, 500))
+  if (!myId()) return
+  const cur = state.session
+  if (cur && !cur.host) return // you joined someone else's walk
+  if (cur && cur.trailId !== t.id) return
+  // Your own group already exists (e.g. you tapped Walk together earlier): make sure it's listed, rather than skipping.
+  const s = cur ?? startGroup(t)
+  const id = await announceHike(s.topic, inviteLink(s, t), t.name)
+  if (!id) console.warn('[trailz] could not list this walk for followers', lastAnnounceError())
 }
 
 export async function joinGroup(inv: Invite): Promise<Trail> {

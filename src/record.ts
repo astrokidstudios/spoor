@@ -286,7 +286,7 @@ export async function resumeRecording() {
   if (w.status === 'recording') startGps()
   // A walk started before followers could see it: put it live now (only if it's on a trail and not already in a group).
   const t = w.trailId ? await db.trails.get(w.trailId) : undefined
-  if (t && w.status === 'recording') setTimeout(() => void goLiveForFollowers(t).catch(() => {}), 2500)
+  if (t && (w.status === 'recording' || w.status === 'paused')) setTimeout(() => void goLiveForFollowers(t).catch(() => {}), 1500)
 }
 
 export async function deleteWalk(id: string) {

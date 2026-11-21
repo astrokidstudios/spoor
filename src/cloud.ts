@@ -119,13 +119,17 @@ export interface Hike { id: string; host: string; join_url: string; trail_name: 
 const HIKE_KEY = 'trailz.myHike'
 interface MyHike { id: string; topic: string }
 let myHike: MyHike | null = readJSON<MyHike | null>(HIKE_KEY, null)
+let announceError = ''
+/** Why the last attempt to list a walk for followers failed (empty if it worked). */
+export const lastAnnounceError = () => announceError
 
 /** Tell followers you've started a group walk, so they can find and join it. Safe to call again. */
 export async function announceHike(topic: string, joinUrl: string, trailName: string): Promise<string | null> {
   if (!myId()) return null
   if (myHike?.topic === topic) return myHike.id
   const { data, error } = await supabase.from('hikes').insert({ topic, join_url: joinUrl, trail_name: trailName }).select('id').single()
-  if (error || !data) return null
+  if (error || !data) { announceError = error?.message ?? 'no row returned'; console.warn('[trailz] announceHike failed:', announceError); return null }
+  announceError = ''
   myHike = { id: data.id, topic }
   writeJSON(HIKE_KEY, myHike)
   return data.id
