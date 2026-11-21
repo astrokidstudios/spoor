@@ -673,8 +673,17 @@ html.modal-open .panel-scroll { overflow: hidden; }
 .join-offline input { width: auto; margin-top: 3px; }
 
 /* ===== Vertical scrolling only: nothing in the panels scrolls sideways ===== */
-.panel-scroll, .tab-body { overflow-x: hidden; }
-.tab-body > * { min-width: 0; }
+.panel-scroll { overflow-x: hidden; } /* last safety net only; the rules below fix the real causes */
+/* Grid and flex children may shrink below their content's width (otherwise one long row widens the whole card). */
+.tab-body, .card, .group-card, .trail-progress, .pack, .follow-card, .modal-body, .members, .where, .sos-where, .live-now { grid-template-columns: minmax(0, 1fr); }
+.tab-body > *, .row > *, .member-main > * { min-width: 0; }
+.row.between { gap: 8px; }
+.row.between > .muted, .row.between > .small, .row.between > span:last-child { flex-shrink: 0; }
+.row.between > b, .row.between > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Rows of buttons wrap onto a second line instead of pushing past the edge. */
+.row.gap, .row.gap.wrap, .group-card .row.gap, .rec-controls { flex-wrap: wrap; }
+.row.gap > .btn { flex: 1 1 auto; }
+.bar span { max-width: 100%; }
 .chips { flex-wrap: wrap; overflow: visible; padding-bottom: 0; }
 .photo-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; }
 .photo-strip .photo-thumb { width: auto; height: auto; aspect-ratio: 1; }

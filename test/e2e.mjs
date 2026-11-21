@@ -15,6 +15,68 @@ const offline = { value: false }
 const errors = []
 const ok = (cond, msg) => { console.log(cond ? '✓' : '✗', msg); if (!cond) process.exitCode = 1 }
 
+// ---- Layout check: nothing may stick out of its box or the screen ----
+// Runs after every phone screenshot, at 390 px and again at 360 px wide.
+const layoutProblems = new Map()
+async function findOverflow(page) {
+  return page.evaluate(() => {
+    const out = []
+    const vw = document.documentElement.clientWidth
+    const skip = (el) => el.closest('.leaflet-container, .tp-viewer, .map-area, .follow-map, [aria-hidden="true"], .sr-only')
+    const boundary = (el) => {
+      for (let a = el.parentElement; a; a = a.parentElement) {
+        const ox = getComputedStyle(a).overflowX
+        if (ox !== 'visible') return a
+      }
+      return null
+    }
+    for (const el of document.querySelectorAll('body *')) {
+      if (skip(el)) continue
+      const st = getComputedStyle(el)
+      if (st.display === 'none' || st.visibility === 'hidden' || st.position === 'fixed' && el.matches('.cheer')) continue
+      const r = el.getBoundingClientRect()
+      if (!r.width || !r.height) continue
+      const box = boundary(el)
+      const br = box ? box.getBoundingClientRect() : { left: 0, right: vw }
+      const right = Math.min(br.right, vw), left = Math.max(br.left, 0)
+      // Only look at things in view vertically inside their scroller (lists below the fold still count).
+      // Also: a normal (not absolutely positioned) element must fit inside its parent's box.
+      const pe = el.parentElement
+      if (pe && st.position !== 'absolute' && st.position !== 'fixed' && getComputedStyle(pe).display !== 'inline' && !skip(pe)) {
+        const pr = pe.getBoundingClientRect()
+        const pst = getComputedStyle(pe)
+        const innerRight = pr.right - parseFloat(pst.borderRightWidth || '0')
+        if (r.right - innerRight > 1.5 && pst.overflowX === 'visible') {
+          const cls = typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 3).join('.') : ''
+          out.push(`${el.tagName.toLowerCase()}${cls === '.' ? '' : cls} "${(el.textContent || '').trim().slice(0, 40)}" sticks out of its parent by ${Math.round(r.right - innerRight)}px`)
+          continue
+        }
+      }
+      const over = r.right - right, under = left - r.left
+      if (over > 1 || under > 1) {
+        // Report the outermost offender only (its children would repeat it).
+        const par = el.parentElement && el.parentElement.getBoundingClientRect()
+        if (par && (par.right - right > 1 || left - par.left > 1) && !box?.isSameNode(el.parentElement)) continue
+        const cls = typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 3).join('.') : ''
+        out.push(`${el.tagName.toLowerCase()}${cls === '.' ? '' : cls} "${(el.textContent || '').trim().slice(0, 40)}" sticks out ${Math.round(Math.max(over, under))}px`)
+      }
+    }
+    return [...new Set(out)].slice(0, 12)
+  })
+}
+async function checkLayout(page, name) {
+  const vp = page.viewportSize()
+  if (!vp || vp.width > 500) return
+  const found = (await findOverflow(page)).map((x) => `${vp.width}px: ${x}`)
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.waitForTimeout(150)
+  found.push(...(await findOverflow(page)).map((x) => `360px: ${x}`))
+  await page.setViewportSize(vp)
+  await page.waitForTimeout(100)
+  if (found.length) layoutProblems.set(name, found)
+}
+const snap = async (page, path) => { await page.screenshot({ path }); await checkLayout(page, path.split('/').pop()) }
+
 async function context(opts) {
   const ctx = await b.newContext({ serviceWorkers: 'block', permissions: ['geolocation', 'clipboard-read', 'clipboard-write', 'accelerometer', 'gyroscope', 'magnetometer'], geolocation: { latitude: -29.0402, longitude: 29.3995, accuracy: 9 }, ...opts })
   const log = await mock(ctx, { ntfy, offline })
@@ -31,7 +93,7 @@ const names = await p.locator('.trail-name').allTextContents()
 ok(names.length >= 5, `found ${names.length} trails: ${names.join(' | ')}`)
 ok(!names.some((n) => n === 'Mountain path' && names.filter((x) => x === n).length > 1), 'no duplicate unnamed paths')
 await p.waitForTimeout(800)
-await p.screenshot({ path: `${OUT}/1-phone-trails.png` })
+await snap(p, `${OUT}/1-phone-trails.png`)
 
 // Searching the same area again (here: opening the app again) uses the saved copy, with no trail-server request.
 const overpassCalls = () => log.filter((l) => l.includes('overpass')).length
@@ -69,7 +131,7 @@ await p.locator('.tp-thumb').first().click()
 await p.waitForSelector('.tp-viewer')
 ok((await p.locator('.tp-count').textContent()) === '1 / 3', 'photo viewer opens at the tapped photo')
 ok(/Photo of Cathkin Peak · Sam Walker · CC BY 2.0/.test(await p.locator('.tp-cap').textContent()), 'photo credit, licence and what it shows')
-await p.screenshot({ path: `${OUT}/2b-phone-trail-photo.png` })
+await snap(p, `${OUT}/2b-phone-trail-photo.png`)
 await p.locator('.tp-x').click()
 ok((await p.locator('.tp-viewer').count()) === 0, 'photo viewer closes')
 await p.locator('.icon-btn[aria-label="Save trail"]').click()
@@ -77,12 +139,12 @@ await p.waitForSelector('.sheet')
 await p.getByLabel('New group name').fill('Drakensberg')
 await p.getByRole('button', { name: 'Add', exact: true }).click()
 await p.waitForSelector('.group-row.on')
-await p.screenshot({ path: `${OUT}/2b-phone-save-group.png` })
+await snap(p, `${OUT}/2b-phone-save-group.png`)
 await p.getByRole('button', { name: /Save to 1 group/ }).click()
 await p.waitForSelector('.in-groups .chip')
 ok((await p.locator('.in-groups').textContent()).includes('Drakensberg'), 'trail saved into a new group')
 await p.waitForTimeout(300)
-await p.screenshot({ path: `${OUT}/2-phone-trail-detail.png` })
+await snap(p, `${OUT}/2-phone-trail-detail.png`)
 
 // Save offline area from the trail
 await p.getByRole('button', { name: /Save for offline/ }).click()
@@ -93,12 +155,12 @@ await p.getByPlaceholder(/Name, e.g./).fill("Monk's Cowl")
 await p.getByRole('button', { name: 'Save', exact: true }).click()
 await p.waitForSelector('.pill.busy')
 await p.waitForTimeout(600)
-await p.screenshot({ path: `${OUT}/3-phone-downloading.png` })
+await snap(p, `${OUT}/3-phone-downloading.png`)
 await p.waitForSelector('.pill.ready', { timeout: 120000 })
 const packMeta = await p.locator('.pack .tiny').first().textContent()
 ok(/\d+ trails · 15 species/.test(packMeta), `pack saved: ${packMeta}`)
 ok(overpassCalls() === firstCalls + 1, 'saving the area reused the saved trail search')
-await p.screenshot({ path: `${OUT}/4-phone-offline.png` })
+await snap(p, `${OUT}/4-phone-offline.png`)
 
 // Wildlife from the pack
 await p.getByRole('tab', { name: /Wildlife/ }).click()
@@ -113,19 +175,19 @@ ok(careful.includes('Leopard') && careful.includes('Puff Adder') && careful.incl
 await p.locator('.species', { hasText: 'Berg Adder' }).click()
 const modalText = await p.locator('.modal').textContent()
 ok(modalText.includes('Drakensberg') && modalText.includes('First aid'), 'berg adder safety tips')
-await p.screenshot({ path: `${OUT}/5b-phone-snake.png` })
+await snap(p, `${OUT}/5b-phone-snake.png`)
 await p.locator('.modal-x').click()
 await p.locator('.chip', { hasText: /^All/ }).click()
 await p.locator('.chip', { hasText: 'Reptiles' }).click()
 ok((await p.locator('.sp-name').allTextContents()).includes('Puff Adder'), 'reptile filter')
 await p.locator('.chip', { hasText: /^All/ }).click()
 await p.waitForTimeout(500)
-await p.screenshot({ path: `${OUT}/5-phone-wildlife.png` })
+await snap(p, `${OUT}/5-phone-wildlife.png`)
 await p.locator('.species', { hasText: 'Bearded Vulture' }).click()
 await p.getByRole('button', { name: 'I saw this' }).click()
 await p.waitForTimeout(300)
 ok(await p.locator('.modal').getByText('Endangered').count() > 0 || (await p.locator('.modal').textContent()).includes('Endangered'), 'species detail with status')
-await p.screenshot({ path: `${OUT}/6-phone-species.png` })
+await snap(p, `${OUT}/6-phone-species.png`)
 await p.locator('.modal-x').click()
 
 // ---- Go offline: everything should still work ----
@@ -140,7 +202,7 @@ await p.getByRole('button', { name: 'Show', exact: true }).click()
 await p.waitForTimeout(2500)
 const blobTiles = await p.evaluate(() => [...document.querySelectorAll('.leaflet-tile')].filter((i) => i.src.startsWith('blob:') && i.complete).length)
 ok(blobTiles > 3, `map tiles served from offline storage: ${blobTiles}`)
-await p.screenshot({ path: `${OUT}/7-phone-offline-map.png` })
+await snap(p, `${OUT}/7-phone-offline-map.png`)
 await p.getByRole('tab', { name: /Explore/ }).click()
 await p.getByRole('tab', { name: /Wildlife/ }).click()
 await p.waitForSelector('.species')
@@ -159,7 +221,7 @@ ok((await p.locator('.sos-where .pluscode').textContent()) === '5G2FX95X+WR', 'S
 ok((await p.locator('.sos-where a', { hasText: 'Text my location' }).getAttribute('href')).includes('Plus%20code%205G2FX95X'), 'SOS can text the location')
 ok((await p.locator('.modal').textContent()).includes('KwaZulu-Natal'), 'SOS knows the province')
 await p.waitForTimeout(800)
-await p.screenshot({ path: `${OUT}/7b-phone-sos-offline.png` })
+await snap(p, `${OUT}/7b-phone-sos-offline.png`)
 await p.locator('.modal-x').click()
 offline.value = false
 await ctx.setOffline(false)
@@ -169,7 +231,7 @@ await p.getByRole('tab', { name: /Share/ }).click()
 await p.locator('.field input').first().fill('Josh')
 await p.getByPlaceholder('Their name').fill('Mom')
 await p.getByPlaceholder(/Mobile/).fill('082 555 1234')
-await p.screenshot({ path: `${OUT}/8-phone-share-setup.png` })
+await snap(p, `${OUT}/8-phone-share-setup.png`)
 // No key first: coordinates only
 await p.getByRole('button', { name: /Start sharing/ }).click()
 await p.waitForSelector('.live')
@@ -189,7 +251,7 @@ const wa = await p.locator('a', { hasText: 'WhatsApp' }).getAttribute('href')
 ok(wa.startsWith('https://wa.me/27825551234'), 'WhatsApp link to contact: ' + wa.slice(0, 40))
 const link = await p.locator('.tiny-input').inputValue()
 ok(link.startsWith('https://astrokidstudios.github.io/spoor/#/follow/spoor-') && link.includes('n=Josh'), 'follow link: ' + link)
-await p.screenshot({ path: `${OUT}/9-phone-sharing.png` })
+await snap(p, `${OUT}/9-phone-sharing.png`)
 
 // 5-minute timer: fast-forward the clock
 const before = ntfy.length
@@ -216,7 +278,7 @@ ok((await f.locator('.where-near').count()) === 1, 'contact sees the nearest tra
 ok((await f.locator('a', { hasText: 'Google Maps directions' }).getAttribute('href')).includes('destination=-29.040200,29.399500'), 'Google Maps directions link')
 ok((await f.locator('a', { hasText: 'Apple Maps' }).getAttribute('href')).startsWith('https://maps.apple.com/?ll=-29.040200,29.399500'), 'Apple Maps link')
 await f.waitForTimeout(1200)
-await f.screenshot({ path: `${OUT}/10-contact-follow.png` })
+await snap(f, `${OUT}/10-contact-follow.png`)
 
 await p.getByRole('button', { name: 'Stop sharing' }).click()
 await p.waitForSelector('text=Start sharing')
@@ -242,7 +304,7 @@ await p.getByRole('button', { name: 'Favourite Mom' }).click()
 await p.waitForFunction(() => document.querySelector('.person-name')?.textContent === 'Mom', null, { timeout: 5000 })
 ok((await p.locator('.fav').first().getAttribute('aria-pressed')) === 'true', 'favourite goes to the top')
 ok((await p.locator('.person.on .person-name').textContent()) === 'Mom', 'top person is pre-selected')
-await p.screenshot({ path: `${OUT}/9b-phone-share-people.png` })
+await snap(p, `${OUT}/9b-phone-share-people.png`)
 
 // ---- Plan your own route ----
 const brouterCalls = () => log.filter((l) => l.includes('brouter.de')).length
@@ -264,7 +326,7 @@ ok((await p.locator('.toggle').getAttribute('aria-checked')) === 'false', 'magne
 await tap(0.5, 0.8)
 await p.waitForFunction(() => document.querySelectorAll('.plan .stats b')[2]?.textContent === '3', null, { timeout: 5000 })
 ok(brouterCalls() === 1, 'straight leg with magnetic off: no routing request')
-await p.screenshot({ path: `${OUT}/12-phone-plan.png` })
+await snap(p, `${OUT}/12-phone-plan.png`)
 await p.getByRole('button', { name: /Out & back/ }).click()
 ok((await p.locator('.plan .stats span').first().textContent()) === 'there & back', 'out & back route')
 await p.getByPlaceholder(/Blue Grotto/).fill('My river walk')
@@ -274,7 +336,7 @@ ok((await p.locator('.trail-title').textContent()) === 'My river walk', 'saved r
 const meta = await p.locator('.trail-title + p').textContent()
 ok(/Out & back/i.test(meta) && meta.includes('Your route'), 'saved route is out & back and marked as yours: ' + meta)
 ok((await p.getByRole('button', { name: /Start this trail/ }).count()) === 1, 'can start the saved route')
-await p.screenshot({ path: `${OUT}/13-phone-saved-route.png` })
+await snap(p, `${OUT}/13-phone-saved-route.png`)
 await p.locator('.link-btn', { hasText: 'All trails' }).click()
 await p.getByRole('button', { name: 'Saved', exact: true }).click()
 await p.waitForSelector('.group-chips')
@@ -292,7 +354,7 @@ await d.waitForSelector('.trail-card')
 await d.locator('.trail-card', { hasText: "Blindman" }).click()
 await d.waitForSelector('.profile')
 await d.waitForTimeout(800)
-await d.screenshot({ path: `${OUT}/11-desktop.png` })
+await snap(d, `${OUT}/11-desktop.png`)
 
 // ---- Recording a walk along an out-and-back trail ----
 const { ctx: c4 } = await context({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
@@ -344,7 +406,7 @@ await g.goto(invite.replace('https://astrokidstudios.github.io/spoor/', URL))
 await g.waitForSelector('.join')
 ok(/Blindman/.test(await g.locator('.join').textContent()) && /Josh invited you/.test(await g.locator('.join').textContent()), 'friend sees the invite with the trail')
 ok(await g.locator('.join-offline input').isChecked(), 'offer to save the map, trails and wildlife offline is ticked')
-await g.screenshot({ path: `${OUT}/group-join.png` })
+await snap(g, `${OUT}/group-join.png`)
 await g.locator('.join input:not([type=checkbox])').fill('Sam')
 await g.getByRole('button', { name: /Join the walk/ }).click()
 await g.waitForSelector('.rec-time')
@@ -357,11 +419,13 @@ await g.waitForFunction(() => /Josh/.test(document.querySelector('.members')?.te
 const gtext = await g.locator('.members').textContent()
 ok(/Josh/.test(gtext) && /ahead/.test(gtext), 'friend sees Josh ahead: ' + gtext)
 ok(await g.locator('.group-pin').count() >= 1, 'Josh shows on the friend\'s map')
-await g.screenshot({ path: `${OUT}/group-friend.png` })
+await snap(g, `${OUT}/group-friend.png`)
 await r.waitForFunction(() => /Sam/.test(document.querySelector('.members')?.textContent ?? ''), null, { timeout: 20000 })
 const rtext = await r.locator('.members').textContent()
 ok(/Sam/.test(rtext) && /behind/.test(rtext), 'Josh sees Sam behind: ' + rtext)
-await r.screenshot({ path: `${OUT}/group-host.png` })
+// A signed-in host also gets a Friends button: make sure three buttons still fit (it used to widen the card).
+await r.evaluate(() => { const row = document.querySelector('.group-card .row.gap'); const b = row?.querySelector('.btn'); if (row && b) { const c = b.cloneNode(true); c.textContent = 'Friends'; row.insertBefore(c, row.lastElementChild) } })
+await snap(r, `${OUT}/group-host.png`)
 // Pause stops the clock.
 await r.getByRole('button', { name: /Pause/ }).click()
 const t1 = await r.locator('.rec-time').textContent()
@@ -374,7 +438,7 @@ await r.locator('input[aria-label="Add photos"]').setInputFiles({ name: 'falls.p
 await r.waitForSelector('.photo-thumb img', { timeout: 5000 })
 ok(true, 'photo added to the walk')
 await r.waitForTimeout(500)
-await r.screenshot({ path: `${OUT}/12-phone-recording.png` })
+await snap(r, `${OUT}/12-phone-recording.png`)
 // Reload mid-walk: the walk carries on.
 await r.reload()
 await r.getByRole('tab', { name: /Record/ }).click()
@@ -385,7 +449,7 @@ await r.getByRole('button', { name: /Tap again to finish/ }).click()
 await r.waitForSelector('.finished')
 ok(/!/.test(await r.locator('.finished .trail-title').textContent()), 'finish screen cheers: ' + (await r.locator('.finished .trail-title').textContent()))
 await r.waitForTimeout(700)
-await r.screenshot({ path: `${OUT}/12b-phone-finished.png` })
+await snap(r, `${OUT}/12b-phone-finished.png`)
 await r.getByRole('button', { name: 'See your walk' }).click()
 await r.locator('.link-btn', { hasText: 'All walks' }).click()
 await r.waitForSelector('.walk-list .trail-card .badge', { timeout: 5000 }).catch(() => {})
@@ -394,8 +458,10 @@ ok(/Blindman/.test(row) && /kcal/.test(row) && /kcal\s*1$/.test(row.trim()), 'fi
 await r.locator('.walk-list .trail-card').first().click()
 await r.waitForSelector('.photo-strip.big img')
 await r.waitForTimeout(500)
-await r.screenshot({ path: `${OUT}/13-phone-walk-detail.png` })
+await snap(r, `${OUT}/13-phone-walk-detail.png`)
 
+for (const [n, list] of layoutProblems) console.log('  layout:', n, '\n    ' + list.join('\n    '))
+ok(layoutProblems.size === 0, `nothing sticks out of its box at 390 px or 360 px (${layoutProblems.size} screens with problems)`)
 ok(errors.length === 0, 'no page errors ' + JSON.stringify(errors))
 const unexpected = log.filter((l) => !/overpass|inaturalist|open-meteo|opentopomap|what3words|ntfy|nominatim|brouter|wikimedia|wikipedia|openverse/.test(l))
 ok(unexpected.length === 0, 'no unexpected outside requests ' + JSON.stringify(unexpected.slice(0, 5)))
