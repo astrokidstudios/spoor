@@ -421,10 +421,12 @@ await g.waitForFunction(() => /Josh/.test(document.querySelector('.members')?.te
 const gtext = await g.locator('.members').textContent()
 ok(/Josh/.test(gtext) && /ahead/.test(gtext), 'friend sees Josh ahead: ' + gtext)
 ok(await g.locator('.group-pin').count() >= 1, 'Josh shows on the friend\'s map')
+ok(/2 people/.test(await g.locator('.group-card').textContent()), 'friend\'s group card counts both walkers (2 people)')
 await snap(g, `${OUT}/group-friend.png`)
 await r.waitForFunction(() => /Sam/.test(document.querySelector('.members')?.textContent ?? ''), null, { timeout: 20000 })
 const rtext = await r.locator('.members').textContent()
 ok(/Sam/.test(rtext) && /behind/.test(rtext), 'Josh sees Sam behind: ' + rtext)
+ok(/2 people/.test(await r.locator('.group-card').textContent()), 'host\'s group card counts both walkers (2 people)')
 // A signed-in host also gets a Friends button: make sure three buttons still fit (it used to widen the card).
 await r.evaluate(() => { const row = document.querySelector('.group-card .row.gap'); const b = row?.querySelector('.btn'); if (row && b) { const c = b.cloneNode(true); c.textContent = 'Friends'; row.insertBefore(c, row.lastElementChild) } })
 await snap(r, `${OUT}/group-host.png`)

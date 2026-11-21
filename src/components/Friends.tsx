@@ -10,6 +10,7 @@ import {
 import { setSettings, useSettings } from '../settings'
 import { fmtKm } from '../geo'
 import { initials } from '../contacts'
+import { getGroup, useGroup } from '../group'
 import './friends.css'
 import { BatteryAlerts } from './LowBattery'
 import { useBatteryAlerts } from '../cloud'
@@ -22,6 +23,12 @@ function Sheet({ label, onClose, children }: { label: string; onClose: () => voi
 const ago = (iso: string) => {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
   return m < 1 ? 'just started' : m < 60 ? `started ${m} min ago` : `started ${Math.round(m / 60)} h ago`
+}
+
+/** Am I already in the group walk this join link is for? (Then there's nothing to join.) */
+function onThisWalk(joinUrl: string) {
+  const topic = joinUrl.match(/join\/([\w-]+)/)?.[1]
+  return !!topic && getGroup().session?.topic === topic
 }
 
 /** Header button: your initials when signed in, a person icon when not. */
@@ -128,6 +135,7 @@ function ProfileSheet({ onClose }: { onClose: () => void }) {
 
 /** Hikes you can join right now (from people you follow, or invites), and people who just followed you. */
 export function LiveNow({ compact }: { compact?: boolean }) {
+  useGroup() // re-render when you join or leave a walk
   const hikes = useLiveHikes()
   const fresh = useNewFollowers()
   const batt = useBatteryAlerts()
@@ -153,7 +161,7 @@ function LiveHike({ h, onOpen }: { h: Hike; onOpen: () => void }) {
         <span className="muted small">{h.trail_name || 'A trail'} · {ago(h.started_at)}</span>
       </button>
       {h.invited && <button className="icon-btn small" aria-label="Dismiss" onClick={() => void dismissHikeInvite(h.id)}><X size={16} /></button>}
-      <button className="btn primary small" onClick={() => openJoinLink(h.join_url)}>Join</button>
+      {onThisWalk(h.join_url) ? <span className="on-walk small"><Check size={14} /> You're on this walk</span> : <button className="btn primary small" onClick={() => openJoinLink(h.join_url)}>Join</button>}
     </div>
   )
 }
@@ -299,6 +307,7 @@ const hm = (s: number) => { const h = Math.floor(s / 3600), m = Math.round((s % 
 
 /** Someone's profile: follow, their walk happening now (Join), and their past walks. */
 export function PersonSheet({ userId, onClose }: { userId: string; onClose: () => void }) {
+  useGroup() // re-render when you join or leave a walk
   const { session } = useAccount()
   const isMe = session?.user.id === userId
   const [p, setP] = useState<PublicProfile | null | undefined>(undefined)
@@ -343,7 +352,7 @@ export function PersonSheet({ userId, onClose }: { userId: string; onClose: () =
           <div className="live-hike invited">
             <span className="live-ico"><Footprints size={18} /><span className="dot" /></span>
             <div className="grow"><b>Walking now</b><div className="muted small">{live.trail_name || 'A trail'} · {ago(live.started_at)}</div></div>
-            {!isMe && <button className="btn primary small" onClick={() => { onClose(); openJoinLink(live.join_url) }}>Join</button>}
+            {!isMe && (onThisWalk(live.join_url) ? <span className="on-walk small"><Check size={14} /> You're on this walk</span> : <button className="btn primary small" onClick={() => { onClose(); openJoinLink(live.join_url) }}>Join</button>)}
           </div>
         )}
 

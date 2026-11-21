@@ -67,11 +67,13 @@ export default function GroupCard({ walk }: { walk: Walk }) {
   const mine = members.find((m) => m.me)
   const myKm = mine ? (mine.doneKm ?? mine.walkedKm) : (walk.distanceKm)
   const others = members.filter((m) => !m.me)
+  // Everyone on the walk, including you (your own update may not have come back from the server yet).
+  const count = others.length + 1
   return (
     <div className="group-card">
       <div className="row between">
         <b className="row gap-s"><Users size={17} /> Group walk</b>
-        <span className="muted small">{members.length || 1} {members.length === 1 || !members.length ? 'person' : 'people'}</span>
+        <span className="muted small">{count} {count === 1 ? 'person' : 'people'}</span>
       </div>
       {session.host && account && (lastAnnounceError()
         ? <p className="small error">Couldn't list this walk for your followers: {lastAnnounceError()}</p>
