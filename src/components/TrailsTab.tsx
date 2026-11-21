@@ -6,6 +6,8 @@ import { fitBBox, getMap, setMap, useMapState } from '../mapbus'
 import { cachedSearch, difficulty, estimateHours, SHAPE_LABEL, tripOf, fetchProfile, FRESH_MS, KIND_LABEL, offlineTrails, saveTrails, searchAndSave } from '../trails'
 import { KIND_COLOR } from './MapView'
 import Profile from './Profile'
+import RouteThumb from './RouteThumb'
+import { ArrowLeftRight, Car, ChevronLeft, CloudDownload, ExternalLink, Globe, PenLine, Play, Search, ShieldCheck, Star } from 'lucide-react'
 import PlanPanel from './PlanPanel'
 import { isMyRoute, setPlanActive, usePlan } from '../plan'
 
@@ -16,7 +18,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'walking', label: 'Walks' },
   { id: 'running', label: 'Runs' },
   { id: 'path', label: 'Paths' },
-  { id: 'saved', label: '★ Saved' },
+  { id: 'saved', label: 'Saved' },
 ]
 
 export default function TrailsTab({ onDownload, onStart }: { onDownload: () => void; onStart: (t: Trail) => void }) {
@@ -123,9 +125,9 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
     <div className="tab-body">
       <div className="row gap">
         <button className={`btn primary grow ${moved ? 'pulse' : ''}`} onClick={() => search()} disabled={status === 'loading'}>
-          {status === 'loading' ? <span className="spin" /> : '🔎'} {status === 'loading' ? 'Sniffing out trails…' : moved ? 'Search this area' : 'Find trails on the map'}
+          {status === 'loading' ? <span className="spin" /> : <Search size={18} strokeWidth={2.4} />} {status === 'loading' ? 'Sniffing out trails…' : moved ? 'Search this area' : 'Find trails on the map'}
         </button>
-        <button className="btn" onClick={() => { setMap({ selectedId: null }); setPlanActive(true) }} title="Draw your own route on the map">✏️ Plan</button>
+        <button className="btn" onClick={() => { setMap({ selectedId: null }); setPlanActive(true) }} title="Draw your own route on the map"><PenLine size={17} /> Plan</button>
       </div>
       {savedAt && status !== 'loading' && !moved && (
         <p className="tiny muted saved-at">
@@ -136,7 +138,7 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
       <div className="chips">
         {FILTERS.map((f) => (
           <button key={f.id} className={`chip ${filter === f.id ? 'on' : ''}`} onClick={() => setFilter(f.id)}>
-            {f.label}
+            {f.id === 'saved' && <Star size={13} strokeWidth={2.5} />}{f.label}
           </button>
         ))}
       </div>
@@ -156,8 +158,6 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   )
 }
 
-const KIND_EMOJI: Record<Trail['kind'], string> = { hiking: '🥾', walking: '🚶', running: '🏃', path: '🌿' }
-
 const pick = (t?: Trail) => (t ? { profile: t.profile, ascent: t.ascent, descent: t.descent, starred: t.starred, packIds: t.packIds } : {})
 
 function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: () => void }) {
@@ -167,7 +167,7 @@ function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: (
   return (
     <li>
       <button className="trail-card" onClick={onClick}>
-        <span className="trail-ico" style={{ color: KIND_COLOR[t.kind] }} aria-hidden="true">{KIND_EMOJI[t.kind]}</span>
+        <span className="thumb-tile"><RouteThumb lines={t.lines} color={KIND_COLOR[t.kind]} /></span>
         <span className="grow">
           <span className="trail-name">{t.name}</span>
           <span className="trail-meta">
@@ -175,8 +175,8 @@ function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: (
             {d && <span className={`diff d${d.level}`}>{d.label}</span>}
           </span>
         </span>
-        {t.starred && <span className="badge star" title="Saved">★</span>}
-        {saved && <span className="badge" title="Available offline">⬇</span>}
+        {t.starred && <span className="badge star" title="Saved"><Star size={14} fill="currentColor" /></span>}
+        {saved && <span className="badge" title="Available offline"><CloudDownload size={14} /></span>}
       </button>
     </li>
   )
@@ -223,13 +223,13 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
 
   return (
     <div className="tab-body">
-      <button className="link-btn" onClick={onBack}>‹ All trails</button>
+      <button className="link-btn back" onClick={onBack}><ChevronLeft size={18} /> All trails</button>
       <div className="row between gap" style={{ alignItems: 'flex-start' }}>
         <div>
           <h2 className="trail-title">{t.name}</h2>
           <p className="muted small"><span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span> {isMyRoute(t) ? 'Your route' : KIND_LABEL[t.kind]}{d && <span className={`diff d${d.level}`}>{d.label}</span>}</p>
         </div>
-        <button className={`icon-btn ${t.starred ? 'on' : ''}`} onClick={toggleStar} aria-label={t.starred ? 'Unsave trail' : 'Save trail'} title={t.starred ? 'Saved' : 'Save trail'}>★</button>
+        <button className={`icon-btn ${t.starred ? 'on' : ''}`} onClick={toggleStar} aria-label={t.starred ? 'Unsave trail' : 'Save trail'} title={t.starred ? 'Saved' : 'Save trail'}><Star size={22} fill={t.starred ? 'currentColor' : 'none'} /></button>
       </div>
       <div className="stats">
         <div><b>{fmtKm(trip.km)}</b><span>{trip.shape === 'out-back' ? 'return' : 'loop'}</span></div>
@@ -237,8 +237,8 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
         <div><b>~{fmtDuration(est.walk)}</b><span>walking</span></div>
         <div><b>~{fmtDuration(est.run)}</b><span>running</span></div>
       </div>
-      {trip.shape === 'out-back' && <p className="small muted out-back-note">↔ Out and back: {fmtKm(t.distanceKm)} each way{t.ascent != null ? `, ${t.ascent} m up on the way out` : ''}. Times are for the full return.</p>}
-      <button className="btn primary block" onClick={() => onStart(t)}>▶ Start this trail</button>
+      {trip.shape === 'out-back' && <p className="small muted out-back-note"><ArrowLeftRight size={15} /> Out and back: {fmtKm(t.distanceKm)} each way{t.ascent != null ? `, ${t.ascent} m up on the way out` : ''}. Times are for the full return.</p>}
+      <button className="btn primary block" onClick={() => onStart(t)}><Play size={17} fill="currentColor" /> Start this trail</button>
       {t.profile ? <Profile data={t.profile} /> : <p className="note small">{profileErr ? 'Elevation profile needs a connection.' : navigator.onLine === false ? 'Elevation profile needs a connection.' : 'Loading elevation…'}</p>}
       {desc && <p>{desc}</p>}
       {info.length > 0 && (
@@ -247,12 +247,12 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
         </dl>
       )}
       <div className="row gap wrap">
-        <button className="btn" onClick={() => { fitBBox(padBBox(t.bbox, 3), 14); onDownload() }}>⬇ {saved ? 'Save more of this area' : 'Save for offline'}</button>
-        <a className="btn" href={`https://www.google.com/maps/dir/?api=1&destination=${start[0]},${start[1]}`} target="_blank" rel="noreferrer">🚗 Drive to start</a>
-        {t.tags.website && <a className="btn" href={t.tags.website} target="_blank" rel="noreferrer">Website</a>}
-        <a className="btn subtle" href={`https://www.openstreetmap.org/${t.id.startsWith('r') ? 'relation/' + t.id.slice(1) : 'way/' + t.id.slice(1).split('-')[0]}`} target="_blank" rel="noreferrer">Fix on OSM</a>
+        <button className="btn" onClick={() => { fitBBox(padBBox(t.bbox, 3), 14); onDownload() }}><CloudDownload size={17} /> {saved ? 'Save more of this area' : 'Save for offline'}</button>
+        <a className="btn" href={`https://www.google.com/maps/dir/?api=1&destination=${start[0]},${start[1]}`} target="_blank" rel="noreferrer"><Car size={17} /> Drive to start</a>
+        {t.tags.website && <a className="btn" href={t.tags.website} target="_blank" rel="noreferrer"><Globe size={16} /> Website</a>}
+        <a className="btn subtle" href={`https://www.openstreetmap.org/${t.id.startsWith('r') ? 'relation/' + t.id.slice(1) : 'way/' + t.id.slice(1).split('-')[0]}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Fix on OSM</a>
       </div>
-      {saved && <p className="note good small">✓ Map and trail saved on this device: works without signal.</p>}
+      {saved && <p className="note good small"><ShieldCheck size={16} /> Map and trail saved on this device: works without signal.</p>}
     </div>
   )
 }

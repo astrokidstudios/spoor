@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
+import { Layers, LocateFixed } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Trail } from '../db'
@@ -119,7 +120,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     const first = track.lines.find((l) => l.length)?.[0]
     if (first) g.addLayer(L.circleMarker(first, { radius: 6, color: '#fff', weight: 3, fillColor: '#16a34a', fillOpacity: 1 }).bindTooltip('Start'))
     for (const ph of track.photos) {
-      const m = L.marker([ph.lat, ph.lng], { icon: L.divIcon({ className: 'photo-pin', html: '📷', iconSize: [30, 30] }) })
+      const m = L.marker([ph.lat, ph.lng], { icon: L.divIcon({ className: 'photo-pin', html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>', iconSize: [32, 32] }) })
       m.bindPopup('<div class="photo-pop">Loading…</div>', { maxWidth: 260 })
       m.on('popupopen', async () => {
         const p = await db.photos.get(ph.id)
@@ -191,16 +192,16 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
       <div ref={el} className="map" />
       <div className="map-tools">
         <button className={`map-btn ${follow ? 'on' : ''}`} title="Show my location" aria-label="Show my location" onClick={locate}>
-          <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="4" fill="currentColor" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
+          <LocateFixed size={20} strokeWidth={2.2} />
         </button>
         <button className="map-btn" title="Map style" aria-label="Map style" onClick={() => setStyleOpen((o) => !o)}>
-          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 3 2 8l10 5 10-5-10-5Zm-7.6 8.2L2 12.5l10 5 10-5-2.4-1.3L12 15l-7.6-3.8Zm0 4.5L2 17l10 5 10-5-2.4-1.3L12 19.5l-7.6-3.8Z" fill="currentColor" /></svg>
+          <Layers size={20} strokeWidth={2.2} />
         </button>
         {styleOpen && (
           <div className="style-menu">
             {Object.values(SOURCES).map((s) => (
               <button key={s.id} className={settings.mapStyle === s.id ? 'on' : ''} onClick={() => { setSettings({ mapStyle: s.id as never }); setStyleOpen(false) }}>
-                {s.label}{s.needsKey && !settings.thunderforestKey ? ' 🔑' : ''}
+                {s.label}{s.needsKey && !settings.thunderforestKey ? ' (needs key)' : ''}
               </button>
             ))}
           </div>

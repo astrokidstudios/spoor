@@ -3,6 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Species } from '../db'
 import { getMap } from '../mapbus'
 import { fetchAreaWildlife, GROUPS, groupInfo } from '../wildlife'
+import GroupIcon from './GroupIcon'
+import { Check, RefreshCw, TriangleAlert } from 'lucide-react'
 import { safetyFor } from '../safety'
 
 type Row = Omit<Species, 'id' | 'packId'> & { id?: string }
@@ -56,20 +58,20 @@ export default function WildlifeTab() {
     <div className="tab-body">
       <div className="row gap">
         <select className="input grow" value={source} onChange={(e) => setSource(e.target.value)} aria-label="Which area">
-          {withSpecies.map((p) => <option key={p.id} value={p.id}>⬇ {p.name} ({p.speciesCount})</option>)}
-          <option value="live">🌐 Area on the map (online)</option>
+          {withSpecies.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.speciesCount}, saved)</option>)}
+          <option value="live">Area on the map (online)</option>
         </select>
-        {source === 'live' && <button className="btn" onClick={loadLive} disabled={loading}>{loading ? <span className="spin" /> : '↻'}</button>}
+        {source === 'live' && <button className="btn" onClick={loadLive} disabled={loading}>{loading ? <span className="spin" /> : <RefreshCw size={17} />}</button>}
       </div>
       <input className="input" type="search" placeholder="Search, e.g. eland, sugarbird, protea" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="chips">
         <button className={`chip ${group === 'all' ? 'on' : ''}`} onClick={() => setGroup('all')}>All {rows.length || ''}</button>
-        {dangerCount > 0 && <button className={`chip warn ${group === 'danger' ? 'on' : ''}`} onClick={() => setGroup('danger')}>⚠ Be careful {dangerCount}</button>}
-        {snakeCount > 0 && <button className={`chip ${group === 'snakes' ? 'on' : ''}`} onClick={() => setGroup('snakes')}>🐍 Snakes {snakeCount}</button>}
+        {dangerCount > 0 && <button className={`chip warn ${group === 'danger' ? 'on' : ''}`} onClick={() => setGroup('danger')}><TriangleAlert size={14} /> Be careful {dangerCount}</button>}
+        {snakeCount > 0 && <button className={`chip ${group === 'snakes' ? 'on' : ''}`} onClick={() => setGroup('snakes')}><GroupIcon group="snakes" size={14} /> Snakes {snakeCount}</button>}
         {GROUPS.filter((g) => counts.get(g.id)).map((g) => (
-          <button key={g.id} className={`chip ${group === g.id ? 'on' : ''}`} onClick={() => setGroup(g.id)}>{g.emoji} {g.label} {counts.get(g.id)}</button>
+          <button key={g.id} className={`chip ${group === g.id ? 'on' : ''}`} onClick={() => setGroup(g.id)}><GroupIcon group={g.id} size={14} /> {g.label} {counts.get(g.id)}</button>
         ))}
-        {sightings && sightings.size > 0 && <button className={`chip ${group === 'seen' ? 'on' : ''}`} onClick={() => setGroup('seen')}>✓ Seen</button>}
+        {sightings && sightings.size > 0 && <button className={`chip ${group === 'seen' ? 'on' : ''}`} onClick={() => setGroup('seen')}><Check size={14} /> Seen</button>}
       </div>
       {err && <p className="note error">{err}</p>}
       {loading && <p className="note">Looking up wildlife recorded here…</p>}
@@ -81,7 +83,7 @@ export default function WildlifeTab() {
               <Photo r={r} />
               <span className="sp-name">{r.common}</span>
               <span className="sp-sci">{r.name}</span>
-              {sightings?.has(r.taxonId) && <span className="seen">✓</span>}
+              {sightings?.has(r.taxonId) && <span className="seen"><Check size={13} strokeWidth={3} /></span>}
               <DangerBadge r={r} />
             </button>
           </li>
@@ -96,7 +98,7 @@ export default function WildlifeTab() {
 function DangerBadge({ r }: { r: Row }) {
   const s = safetyFor(r.name, r.group, r.snake)
   if (!s.danger) return null
-  return <span className={`danger-badge ${s.danger}`}>{s.danger === 'danger' ? '⚠ ' : ''}{s.label}</span>
+  return <span className={`danger-badge ${s.danger}`}>{s.danger === 'danger' && <TriangleAlert size={11} strokeWidth={2.6} />}{s.label}</span>
 }
 
 function Photo({ r, big }: { r: Row; big?: boolean }) {
@@ -109,10 +111,9 @@ function Photo({ r, big }: { r: Row; big?: boolean }) {
     }
     setUrl(r.photoUrl)
   }, [r.photo, r.photoUrl])
-  const g = groupInfo(r.group)
   return (
     <span className={`photo ${big ? 'big' : ''}`}>
-      {url ? <img src={url} alt={r.common} loading="lazy" onError={() => setUrl(undefined)} /> : <span className="photo-ph">{g.emoji}</span>}
+      {url ? <img src={url} alt={r.common} loading="lazy" onError={() => setUrl(undefined)} /> : <span className="photo-ph"><GroupIcon group={r.group} size={34} strokeWidth={1.5} /></span>}
     </span>
   )
 }
@@ -121,7 +122,7 @@ function SafetyBox({ r }: { r: Row }) {
   const s = safetyFor(r.name, r.group, r.snake)
   return (
     <div className={`safety ${s.danger ?? 'info'}`}>
-      <b>{s.danger ? `⚠ ${s.label}` : 'If you see one'}</b>
+      <b>{s.danger ? <><TriangleAlert size={15} /> {s.label}</> : 'If you see one'}</b>
       <p>{s.tip}</p>
       {s.firstAid && (
         <details>
@@ -147,12 +148,12 @@ function SpeciesModal({ r, seen, onClose }: { r: Row; seen: boolean; onClose: ()
         <Photo r={r} big />
         <div className="modal-body">
           <h2>{r.common}</h2>
-          <p className="muted"><i>{r.name}</i> · {g.emoji} {g.label}</p>
+          <p className="muted"><i>{r.name}</i> · {g.label}</p>
           <p className="small">Recorded {r.count.toLocaleString()} time{r.count === 1 ? '' : 's'} {r.nearby ? 'within about 25 km of this area' : 'in this area'}{r.status ? ` · ${r.status}` : ''}.</p>
           <SafetyBox r={r} />
           {r.summary ? <p>{r.summary}</p> : <p className="muted small">No description saved for this one.</p>}
           <div className="row gap wrap">
-            <button className={`btn ${seen ? 'primary' : ''}`} onClick={toggleSeen}>{seen ? '✓ Seen it' : 'I saw this'}</button>
+            <button className={`btn ${seen ? 'primary' : ''}`} onClick={toggleSeen}>{seen ? <><Check size={16} /> Seen it</> : 'I saw this'}</button>
             <a className="btn subtle" href={`https://www.inaturalist.org/taxa/${r.taxonId}`} target="_blank" rel="noreferrer">More on iNaturalist</a>
           </div>
           {r.photoAttribution && <p className="muted tiny">Photo: {r.photoAttribution}</p>}

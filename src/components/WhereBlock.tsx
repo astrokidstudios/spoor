@@ -1,3 +1,4 @@
+import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { appleMapsUrl, coordsText, googleMapsUrl, plusCode, whereText, type Where } from '../where'
 
@@ -25,7 +26,7 @@ export default function WhereBlock({ w, label, big, sms }: { w: Where; label?: s
       <div className="row gap wrap">
         <a className="btn small" href={googleMapsUrl(w)} target="_blank" rel="noreferrer">Google Maps directions</a>
         <a className="btn small" href={appleMapsUrl(w, label)} target="_blank" rel="noreferrer">Apple Maps</a>
-        <button className="btn small" onClick={copy}>{copied ? '✓ Copied' : 'Copy coordinates'}</button>
+        <button className="btn small" onClick={copy}>{copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy coordinates</>}</button>
         {sms && <a className="btn small" href={`sms:${isIOS ? '&' : '?'}body=${encodeURIComponent(whereText(w))}`}>Text my location</a>}
       </div>
     </div>

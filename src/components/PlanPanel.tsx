@@ -4,6 +4,7 @@ import { fmtKm } from '../geo'
 import { getMap, setMap } from '../mapbus'
 import { clearPlan, finishRoute, planKm, planLine, planTripKm, savePlan, setMagnetic, setPlanActive, setPlanMode, undoPoint, usePlan } from '../plan'
 import { fetchProfile, shapeOf } from '../trails'
+import { ArrowLeftRight, Bike, Eraser, Footprints, Magnet, RotateCcw, Star, Undo2 } from 'lucide-react'
 
 /** Plot your own route: tap the map to add points; magnetic mode follows real paths. */
 export default function PlanPanel({ onSaved }: { onSaved: (t: Trail) => void }) {
@@ -56,11 +57,11 @@ export default function PlanPanel({ onSaved }: { onSaved: (t: Trail) => void }) 
       </div>
       <div className="row gap wrap">
         <button className={`toggle ${plan.magnetic ? 'on' : ''}`} role="switch" aria-checked={plan.magnetic} onClick={() => setMagnetic(!plan.magnetic)}>
-          <span className="knob" /> 🧲 Magnetic {plan.magnetic ? 'on' : 'off'}
+          <span className="knob" /> <Magnet size={16} /> Magnetic {plan.magnetic ? 'on' : 'off'}
         </button>
         <div className="seg" role="group" aria-label="Route for">
-          <button className={plan.mode === 'walk' ? 'on' : ''} onClick={() => setPlanMode('walk')}>🥾 Walk</button>
-          <button className={plan.mode === 'bike' ? 'on' : ''} onClick={() => setPlanMode('bike')}>🚲 Bike</button>
+          <button className={plan.mode === 'walk' ? 'on' : ''} onClick={() => setPlanMode('walk')}><Footprints size={15} /> Walk</button>
+          <button className={plan.mode === 'bike' ? 'on' : ''} onClick={() => setPlanMode('bike')}><Bike size={15} /> Bike</button>
         </div>
       </div>
       <p className="muted small">
@@ -78,16 +79,16 @@ export default function PlanPanel({ onSaved }: { onSaved: (t: Trail) => void }) 
       </div>
       {plan.note && <p className="note small">{plan.note}</p>}
       <div className="row gap wrap">
-        <button className="btn small" onClick={undoPoint} disabled={!plan.points.length}>↶ Undo</button>
-        <button className="btn small" onClick={() => void finishRoute('loop')} disabled={plan.points.length < 2}>⟲ Back to start</button>
-        <button className={`btn small ${plan.outBack ? 'primary' : ''}`} onClick={() => void finishRoute('back')} disabled={plan.points.length < 2}>↔ Out & back</button>
-        <button className="btn small subtle" onClick={clearPlan} disabled={!plan.points.length}>Clear</button>
+        <button className="btn small" onClick={undoPoint} disabled={!plan.points.length}><Undo2 size={15} /> Undo</button>
+        <button className="btn small" onClick={() => void finishRoute('loop')} disabled={plan.points.length < 2}><RotateCcw size={15} /> Back to start</button>
+        <button className={`btn small ${plan.outBack ? 'primary' : ''}`} onClick={() => void finishRoute('back')} disabled={plan.points.length < 2}><ArrowLeftRight size={15} /> Out & back</button>
+        <button className="btn small subtle" onClick={clearPlan} disabled={!plan.points.length}><Eraser size={15} /> Clear</button>
       </div>
       <div className="row gap">
         <input className="input grow" placeholder="Name, e.g. Blue Grotto via the river" value={name} onChange={(e) => setName(e.target.value)} />
-        <button className="btn primary" onClick={save} disabled={line.length < 2 || saving || plan.busy > 0}>{saving ? <span className="spin" /> : '★ Save route'}</button>
+        <button className="btn primary" onClick={save} disabled={line.length < 2 || saving || plan.busy > 0}>{saving ? <span className="spin" /> : <><Star size={16} /> Save route</>}</button>
       </div>
-      <p className="muted tiny">Saved routes appear under ★ Saved, work offline, and you can use ▶ Start this trail on them. Path routing by <a href="https://brouter.de" target="_blank" rel="noreferrer">BRouter</a> using OpenStreetMap data.</p>
+      <p className="muted tiny">Saved routes appear under Saved, work offline, and you can use Start this trail on them. Path routing by <a href="https://brouter.de" target="_blank" rel="noreferrer">BRouter</a> using OpenStreetMap data.</p>
     </div>
   )
 }

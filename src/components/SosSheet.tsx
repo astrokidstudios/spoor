@@ -1,3 +1,4 @@
+import { Phone, Siren } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { myNumbers, numbersFor, placeFor, saveMyNumbers, type Num } from '../emergency'
 import { getMap } from '../mapbus'
@@ -53,15 +54,15 @@ export default function SosSheet({ onClose }: { onClose: () => void }) {
       <div className="modal settings" role="dialog" aria-label="Emergency" onClick={(e) => e.stopPropagation()}>
         <button className="modal-x" onClick={onClose} aria-label="Close">×</button>
         <div className="modal-body">
-          <h2>Emergency</h2>
+          <h2 className="sos-title"><Siren size={24} /> Emergency</h2>
           <p className="muted small">{place ? `Numbers for ${place.place}. Tap to call; these work without data.` : 'Finding the right numbers…'}</p>
           <ul className="sos-list">
             {place?.nums.map((n) => (
-              <li key={n.number}><a href={tel(n.number)}><b>{pretty(n.number)}</b><span>{n.label}</span></a></li>
+              <li key={n.number}><a href={tel(n.number)}><span className="call-ico"><Phone size={18} /></span><b>{pretty(n.number)}</b><span>{n.label}</span></a></li>
             ))}
             {mine.map((n, i) => (
               <li key={'m' + i} className="row gap">
-                <a className="grow" href={tel(n.number)}><b>{pretty(n.number)}</b><span>{n.label}</span></a>
+                <a className="grow" href={tel(n.number)}><span className="call-ico"><Phone size={18} /></span><b>{pretty(n.number)}</b><span>{n.label}</span></a>
                 <button className="link-btn small" onClick={() => remove(i)} aria-label={`Remove ${n.label}`}>Remove</button>
               </li>
             ))}

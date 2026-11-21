@@ -5,17 +5,17 @@ import { safetyFor } from './safety'
 
 const API = 'https://api.inaturalist.org/v1'
 
-export const GROUPS: { id: string; label: string; emoji: string }[] = [
-  { id: 'Mammalia', label: 'Mammals', emoji: '🦌' },
-  { id: 'Aves', label: 'Birds', emoji: '🐦' },
-  { id: 'Reptilia', label: 'Reptiles', emoji: '🦎' },
-  { id: 'Amphibia', label: 'Frogs', emoji: '🐸' },
-  { id: 'Insecta', label: 'Insects', emoji: '🦋' },
-  { id: 'Arachnida', label: 'Spiders & scorpions', emoji: '🕷️' },
-  { id: 'Plantae', label: 'Plants', emoji: '🌿' },
-  { id: 'Fungi', label: 'Fungi', emoji: '🍄' },
+export const GROUPS: { id: string; label: string }[] = [
+  { id: 'Mammalia', label: 'Mammals' },
+  { id: 'Aves', label: 'Birds' },
+  { id: 'Reptilia', label: 'Reptiles' },
+  { id: 'Amphibia', label: 'Frogs' },
+  { id: 'Insecta', label: 'Insects' },
+  { id: 'Arachnida', label: 'Spiders & scorpions' },
+  { id: 'Plantae', label: 'Plants' },
+  { id: 'Fungi', label: 'Fungi' },
 ]
-export const groupInfo = (id: string) => GROUPS.find((g) => g.id === id) ?? { id, label: 'Other', emoji: '🔎' }
+export const groupInfo = (id: string) => GROUPS.find((g) => g.id === id) ?? { id, label: 'Other' }
 
 interface INatTaxon {
   id: number

@@ -1,3 +1,4 @@
+import { Check, Copy, MapPin, MessageCircle, MessageSquare, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, uid } from '../db'
@@ -60,7 +61,7 @@ export default function ShareTab({ onOpenSettings }: { onOpenSettings: () => voi
             <input className="input grow" placeholder="Mobile, e.g. +27 82 123 4567" inputMode="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
           </div>
         )}
-        <button className="btn primary block" onClick={start} disabled={adding && !newName.trim()}>📍 Start sharing</button>
+        <button className="btn primary block" onClick={start} disabled={adding && !newName.trim()}><MapPin size={17} /> Start sharing</button>
       </section>
       <Limits />
       {contacts && contacts.length > 0 && (
@@ -136,7 +137,7 @@ function Sharing({ onOpenSettings }: { onOpenSettings: () => void }) {
         </p>
         {lastError && <p className="tiny error">{lastError} {lastError.startsWith('what3words') && <button className="link-btn" onClick={onOpenSettings}>Check key</button>}</p>}
         <div className="row gap wrap">
-          <button className="btn small" onClick={() => sendNow()} disabled={busy}>{busy ? <span className="spin" /> : '↻'} Send now</button>
+          <button className="btn small" onClick={() => sendNow()} disabled={busy}>{busy ? <span className="spin" /> : <Send size={15} />} Send now</button>
           <button className="btn small danger" onClick={() => stopSharing()}>Stop sharing</button>
         </div>
       </section>
@@ -145,10 +146,10 @@ function Sharing({ onOpenSettings }: { onOpenSettings: () => void }) {
         <h3>Send {session.contactName} the link</h3>
         <p className="muted small">They open it once; it keeps updating by itself.</p>
         <div className="row gap wrap">
-          {phone && <a className="btn small" href={`https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer">WhatsApp</a>}
-          <a className="btn small" href={`sms:${phone}${isIOS ? '&' : '?'}body=${encodeURIComponent(text)}`}>SMS</a>
+          {phone && <a className="btn small" href={`https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer"><MessageCircle size={15} /> WhatsApp</a>}
+          <a className="btn small" href={`sms:${phone}${isIOS ? '&' : '?'}body=${encodeURIComponent(text)}`}><MessageSquare size={15} /> SMS</a>
           {'share' in navigator && <button className="btn small" onClick={() => navigator.share({ title: 'Follow my hike', text, url: link }).catch(() => {})}>Share…</button>}
-          <button className="btn small" onClick={copy}>{copied ? '✓ Copied' : 'Copy link'}</button>
+          <button className="btn small" onClick={copy}>{copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy link</>}</button>
         </div>
         <input className="input tiny-input" readOnly value={link} onFocus={(e) => e.target.select()} />
         <p className="muted tiny">Want phone alerts too? They can install the free ntfy app and subscribe to <code>{session.topic}</code>.</p>
@@ -162,7 +163,7 @@ function Sharing({ onOpenSettings }: { onOpenSettings: () => void }) {
               <li key={i}>
                 <span>{new Date(p.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 <span className="grow">{p.near ?? (p.words ? `///${p.words}` : `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`)}</span>
-                <span className={p.sent ? 'good' : 'error'}>{p.sent ? '✓ sent' : '✕ not sent'}</span>
+                <span className={p.sent ? 'good' : 'error'}>{p.sent ? <><Check size={13} /> sent</> : <><X size={13} /> not sent</>}</span>
               </li>
             ))}
           </ul>

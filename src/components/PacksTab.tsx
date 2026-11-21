@@ -1,3 +1,4 @@
+import { CloudDownload } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Pack } from '../db'
@@ -53,7 +54,7 @@ export default function PacksTab({ onOpenSettings }: { onOpenSettings: () => voi
             ) : null}
             <div className="row gap">
               <input className="input grow" placeholder="Name, e.g. Monk's Cowl" value={name} onChange={(e) => setName(e.target.value)} />
-              <button className="btn primary" disabled={plan.tooBig || offline} onClick={start}>⬇ Save</button>
+              <button className="btn primary" disabled={plan.tooBig || offline} onClick={start}><CloudDownload size={17} /> Save</button>
             </div>
             {offline && <p className="note small">Connect to the internet to save an area.</p>}
             {plan.src.id !== 'outdoors' && (
