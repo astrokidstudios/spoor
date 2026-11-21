@@ -139,6 +139,10 @@ export interface Contact {
   id: string
   name: string
   phone: string
+  /** Pinned to the top of the Share list. */
+  favourite?: boolean
+  lastSharedAt?: number
+  shareCount?: number
 }
 
 export const db = new Dexie('spoor') as Dexie & {

@@ -206,6 +206,25 @@ await f.reload()
 await f.waitForSelector('text=has stopped sharing', { timeout: 8000 })
 ok(true, 'contact page shows stopped')
 
+// People you've shared with stay on the Share tab; favourites go to the top.
+await p.getByRole('tab', { name: /Share/ }).click()
+await p.waitForSelector('.people .person')
+ok((await p.locator('.person-name').first().textContent()) === 'Mom', 'previously shared contact is listed')
+ok(/shared just now/.test(await p.locator('.person-sub').first().textContent()), 'shows when you last shared with them')
+await p.getByRole('button', { name: /Add by hand/ }).click()
+await p.getByPlaceholder('Their name').fill('Dad')
+await p.getByPlaceholder(/Mobile/).fill('083 555 9876')
+await p.getByRole('button', { name: /Start sharing/ }).click()
+await p.waitForSelector('.live')
+await p.getByRole('button', { name: 'Stop sharing' }).click()
+await p.waitForSelector('.people .person')
+ok((await p.locator('.person-name').allTextContents()).join(',') === 'Dad,Mom', 'most recently shared comes first')
+await p.getByRole('button', { name: 'Favourite Mom' }).click()
+await p.waitForFunction(() => document.querySelector('.person-name')?.textContent === 'Mom', null, { timeout: 5000 })
+ok((await p.locator('.fav').first().getAttribute('aria-pressed')) === 'true', 'favourite goes to the top')
+ok((await p.locator('.person.on .person-name').textContent()) === 'Mom', 'top person is pre-selected')
+await p.screenshot({ path: `${OUT}/9b-phone-share-people.png` })
+
 // ---- Plan your own route ----
 const brouterCalls = () => log.filter((l) => l.includes('brouter.de')).length
 await p.getByRole('tab', { name: /Explore/ }).click()

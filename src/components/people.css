@@ -1,0 +1,12 @@
+/* Share tab: people you can share with (favourites and recents on top). */
+.people { list-style: none; margin: 0 -3px; padding: 3px; display: grid; gap: 6px; max-height: 300px; overflow-y: auto; overscroll-behavior: contain; }
+.person { display: flex; align-items: center; border-radius: 14px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); transition: box-shadow 0.15s, background 0.15s; }
+.person.on { box-shadow: 0 0 0 2px var(--brand); background: color-mix(in srgb, var(--brand) 6%, var(--surface)); }
+.person-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 11px; border: 0; background: none; padding: 9px 4px 9px 10px; text-align: left; }
+.avatar { flex: 0 0 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 0.9rem; color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, var(--surface)); }
+.person-name { display: block; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person-sub { display: block; font-size: 0.78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person-tick { color: var(--brand); flex: 0 0 auto; }
+.fav { flex: 0 0 44px; height: 44px; border: 0; background: none; display: grid; place-items: center; color: var(--muted); border-radius: 12px; transition: color 0.15s, transform 0.15s; }
+.fav.on { color: #f5a524; }
+.fav:active { transform: scale(0.85); }

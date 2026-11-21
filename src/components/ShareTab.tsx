@@ -1,41 +1,61 @@
-import { Check, Copy, MapPin, MessageCircle, MessageSquare, Send, X } from 'lucide-react'
+import { BookUser, Check, Copy, MapPin, MessageCircle, MessageSquare, Send, Star, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, uid } from '../db'
+import { db, type Contact } from '../db'
+import { canPickContacts, initials, markShared, pickFromPhone, saveContact, sortContacts, toggleFavourite } from '../contacts'
 import { followLink, isNative, sendNow, startSharing, stopSharing, useShare } from '../share'
 import { setSettings, useSettings } from '../settings'
 import WhereBlock from './WhereBlock'
+import './people.css'
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
 export default function ShareTab({ onOpenSettings }: { onOpenSettings: () => void }) {
   const share = useShare()
   const settings = useSettings()
-  const contacts = useLiveQuery(() => db.contacts.toArray(), [])
+  const contacts = useLiveQuery(async () => sortContacts(await db.contacts.toArray()), [])
   const [contactId, setContactId] = useState<string>('')
+  const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [newPhone, setNewPhone] = useState('')
+  const [pickErr, setPickErr] = useState('')
   const [, tick] = useState(0)
   useEffect(() => {
     const t = setInterval(() => tick((n) => n + 1), 15000)
     return () => clearInterval(t)
   }, [])
+  // Pre-select the top person (a favourite, or whoever you shared with last).
   useEffect(() => {
-    if (!contactId && contacts?.length) setContactId(contacts[0].id)
+    if (contacts && !contacts.some((c) => c.id === contactId)) setContactId(contacts[0]?.id ?? '')
   }, [contacts, contactId])
 
   if (share.session) return <Sharing onOpenSettings={onOpenSettings} />
 
-  async function start() {
-    let c = contacts?.find((x) => x.id === contactId)
-    if (contactId === 'new' || !c) {
-      if (!newName.trim()) return
-      c = { id: uid(), name: newName.trim(), phone: newPhone.replace(/[^\d+]/g, '') }
-      await db.contacts.add(c)
+  const showForm = adding || (contacts !== undefined && !contacts.length && !canPickContacts)
+
+  async function fromPhone() {
+    setPickErr('')
+    try {
+      const c = await pickFromPhone()
+      if (c) { setContactId(c.id); setAdding(false) }
+    } catch {
+      setPickErr('Could not open your contacts. Allow Trailz in Settings > Privacy & Security > Contacts, or add them by hand.')
     }
+  }
+
+  async function start() {
+    let c: Contact | undefined = contacts?.find((x) => x.id === contactId)
+    if (showForm) {
+      if (!newName.trim()) return
+      c = await saveContact(newName.trim(), newPhone)
+      setAdding(false)
+      setNewName('')
+      setNewPhone('')
+    }
+    if (!c) return
+    await markShared(c.id)
     await startSharing(c.name, c.phone)
   }
-  const adding = contactId === 'new' || !contacts?.length
 
   return (
     <div className="tab-body">
@@ -48,20 +68,44 @@ export default function ShareTab({ onOpenSettings }: { onOpenSettings: () => voi
           <span>Your name (shown to them)</span>
           <input className="input" value={settings.myName} placeholder="e.g. Josh" onChange={(e) => setSettings({ myName: e.target.value })} />
         </label>
-        <label className="field">
+        <div className="field">
           <span>Share with</span>
-          <select className="input" value={adding ? 'new' : contactId} onChange={(e) => setContactId(e.target.value)}>
-            {contacts?.map((c) => <option key={c.id} value={c.id}>{c.name}{c.phone ? ` (${c.phone})` : ''}</option>)}
-            <option value="new">+ New contact</option>
-          </select>
-        </label>
-        {adding && (
+          {contacts && contacts.length > 0 && !showForm && (
+            <ul className="people" role="radiogroup" aria-label="Share with">
+              {contacts.map((c) => (
+                <li key={c.id}>
+                  <div className={`person ${c.id === contactId ? 'on' : ''}`}>
+                    <button className="person-pick" role="radio" aria-checked={c.id === contactId} onClick={() => setContactId(c.id)}>
+                      <span className="avatar" aria-hidden>{initials(c.name)}</span>
+                      <span className="grow">
+                        <span className="person-name">{c.name}</span>
+                        <span className="person-sub">{c.phone || 'No number'}{c.lastSharedAt ? ` · shared ${ago(c.lastSharedAt)}` : ''}</span>
+                      </span>
+                      {c.id === contactId && <Check size={18} className="person-tick" />}
+                    </button>
+                    <button className={`fav ${c.favourite ? 'on' : ''}`} onClick={() => toggleFavourite(c)} aria-label={c.favourite ? `Unfavourite ${c.name}` : `Favourite ${c.name}`} aria-pressed={!!c.favourite}>
+                      <Star size={18} fill={c.favourite ? 'currentColor' : 'none'} />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {showForm && (
+            <div className="row gap wrap">
+              <input className="input grow" placeholder="Their name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+              <input className="input grow" placeholder="Mobile, e.g. +27 82 123 4567" inputMode="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
+            </div>
+          )}
           <div className="row gap wrap">
-            <input className="input grow" placeholder="Their name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            <input className="input grow" placeholder="Mobile, e.g. +27 82 123 4567" inputMode="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
+            {canPickContacts && <button className="btn small" onClick={fromPhone}><BookUser size={16} /> From my contacts</button>}
+            {!showForm
+              ? <button className="btn small subtle" onClick={() => setAdding(true)}><UserPlus size={16} /> Add by hand</button>
+              : contacts && contacts.length > 0 && <button className="btn small subtle" onClick={() => setAdding(false)}>Back to my people</button>}
           </div>
-        )}
-        <button className="btn primary block" onClick={start} disabled={adding && !newName.trim()}><MapPin size={17} /> Start sharing</button>
+          {pickErr && <p className="tiny error">{pickErr}</p>}
+        </div>
+        <button className="btn primary block" onClick={start} disabled={showForm ? !newName.trim() : !contactId}><MapPin size={17} /> Start sharing</button>
       </section>
       <Limits />
       {contacts && contacts.length > 0 && (
