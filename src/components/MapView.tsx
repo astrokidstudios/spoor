@@ -19,7 +19,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 
 export const KIND_COLOR: Record<Trail['kind'], string> = { hiking: '#c2410c', walking: '#7c3aed', running: '#0e7490', path: '#a16207' }
 
-export default function MapView({ onSelect }: { onSelect: (id: string) => void }) {
+export default function MapView({ onSelect, extraTool }: { onSelect: (id: string) => void; extraTool?: React.ReactNode }) {
   const el = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const trailLayer = useRef<L.LayerGroup | null>(null)
@@ -243,6 +243,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
           <LocateFixed size={20} strokeWidth={2.2} />
         </button>
         <MapSearch />
+        {extraTool}
         <button className="map-btn" title="Map style" aria-label="Map style" onClick={() => setStyleOpen((o) => !o)}>
           <Layers size={20} strokeWidth={2.2} />
         </button>

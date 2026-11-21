@@ -118,8 +118,7 @@ function Main() {
           </div>
         </aside>
         <section className="map-area">
-          <MapView onSelect={select} />
-          {!mapBig && <button className="map-expand" onClick={() => setMapBig(true)}><Maximize2 size={15} /> Bigger map</button>}
+          <MapView onSelect={select} extraTool={!mapBig && <button className="map-btn map-expand-btn" onClick={() => setMapBig(true)} aria-label="Bigger map" title="Bigger map"><Maximize2 size={19} strokeWidth={2.2} /></button>} />
         </section>
       </main>
       {mapTab && (
