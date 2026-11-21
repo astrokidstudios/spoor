@@ -4,3 +4,5 @@
 .map-btn.compass.heading svg circle:last-of-type { fill: #2563eb; }
 .compass-read { background: var(--surface); color: var(--text); font-size: 0.75rem; font-weight: 800; padding: 3px 8px; border-radius: 999px; box-shadow: var(--shadow); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .compass-read.warn { max-width: 200px; white-space: normal; font-weight: 600; }
+.map-btn.lock-btn { width: 34px; height: 34px; min-width: 0; padding: 0; display: grid; place-items: center; border-radius: 10px; }
+.map-btn.lock-btn.on { background: var(--brand); color: #fff; }
