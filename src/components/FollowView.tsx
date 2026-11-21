@@ -3,6 +3,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { fetchUpdates, type Update } from '../share'
 import { makeTileLayer, SOURCES } from '../tiles'
+import WhereBlock from './WhereBlock'
 
 /** The page a contact opens from a share link. Works in any browser, no install. */
 export default function FollowView({ topic, name, server }: { topic: string; name: string; server?: string }) {
@@ -76,21 +77,12 @@ export default function FollowView({ topic, name, server }: { topic: string; nam
           <p>Loading…</p>
         ) : last ? (
           <>
-            {last.words ? (
-              <a className="w3w big" href={`https://what3words.com/${last.words}`} target="_blank" rel="noreferrer">///{last.words}</a>
-            ) : (
-              <p className="coords">{last.lat.toFixed(5)}, {last.lng.toFixed(5)}</p>
-            )}
+            <WhereBlock w={last} label={who} big />
             <p className={stale ? 'error' : ''}>
               {mins < 1 ? 'Updated just now' : `Updated ${mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)} h ${mins % 60} min`} ago`} · {new Date(last.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              {last.acc ? ` · accurate to ${last.acc} m` : ''}
             </p>
             {stale && !stopped && <p className="tiny">No update for a while. They may be out of signal or have Spoor closed; mountain areas often have no coverage.</p>}
-            <div className="row gap wrap">
-              <a className="btn small" href={last.words ? `https://what3words.com/${last.words}` : `https://map.what3words.com/${last.lat},${last.lng}`} target="_blank" rel="noreferrer">{last.words ? 'Open in what3words' : 'Show the 3 words'}</a>
-              <a className="btn small" href={`https://www.google.com/maps/search/?api=1&query=${last.lat},${last.lng}`} target="_blank" rel="noreferrer">Google Maps</a>
-              <button className="btn small" onClick={() => map.current?.setView([last.lat, last.lng], 15)}>Centre map</button>
-            </div>
+            <button className="btn small subtle" onClick={() => map.current?.setView([last.lat, last.lng], 15)}>Centre map</button>
           </>
         ) : (
           <p>{err || `No location yet. As soon as ${who}'s phone sends one, it will show here.`}</p>
@@ -98,7 +90,7 @@ export default function FollowView({ topic, name, server }: { topic: string; nam
         {err && last && <p className="tiny error">{err}</p>}
       </section>
       <div ref={el} className="follow-map" />
-      <p className="tiny follow-foot">In an emergency in South Africa call 112 from a mobile, or 10177 and ask for Mountain Rescue. Give them the three words above.</p>
+      <p className="tiny follow-foot">In an emergency in South Africa call 112 from a mobile, or 10177 and ask for Mountain Rescue. Read them the GPS coordinates above.</p>
     </div>
   )
 }

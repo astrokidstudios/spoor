@@ -3,6 +3,8 @@ import { myNumbers, numbersFor, placeFor, saveMyNumbers, type Num } from '../eme
 import { getMap } from '../mapbus'
 import { SNAKEBITE_FIRST_AID } from '../safety'
 import { getPosition, toWords } from '../share'
+import { nearestTrail, type Where } from '../where'
+import WhereBlock from './WhereBlock'
 
 const tel = (n: string) => `tel:${n.replace(/[^\d+]/g, '')}`
 const pretty = (n: string) =>
@@ -10,7 +12,7 @@ const pretty = (n: string) =>
 
 export default function SosSheet({ onClose }: { onClose: () => void }) {
   const [place, setPlace] = useState<{ place: string; nums: Num[] } | null>(null)
-  const [pos, setPos] = useState<{ lat: number; lng: number; acc: number; words?: string } | null>(null)
+  const [pos, setPos] = useState<Where | null>(null)
   const [posErr, setPosErr] = useState('')
   const [mine, setMine] = useState<Num[]>(myNumbers())
   const [adding, setAdding] = useState<Num>({ label: '', number: '' })
@@ -22,8 +24,10 @@ export default function SosSheet({ onClose }: { onClose: () => void }) {
     placeFor(p).then((pl) => setPlace(numbersFor(pl.country, pl.region)))
     getPosition()
       .then(async (g) => {
-        const fix = { lat: g.coords.latitude, lng: g.coords.longitude, acc: g.coords.accuracy }
+        let fix: Where = { lat: g.coords.latitude, lng: g.coords.longitude, acc: g.coords.accuracy, alt: g.coords.altitude }
         setPos(fix)
+        const near = await nearestTrail(fix.lat, fix.lng).catch(() => undefined)
+        if (near) setPos((fix = { ...fix, near }))
         placeFor([fix.lat, fix.lng]).then((pl) => setPlace(numbersFor(pl.country, pl.region)))
         const words = await toWords(fix.lat, fix.lng).catch(() => undefined)
         if (words) setPos({ ...fix, words })
@@ -66,9 +70,8 @@ export default function SosSheet({ onClose }: { onClose: () => void }) {
             <b>Tell them where you are</b>
             {pos ? (
               <>
-                {pos.words && <span className="w3w">///{pos.words}</span>}
-                <span>{pos.lat.toFixed(5)}, {pos.lng.toFixed(5)} <span className="muted small">(±{Math.round(pos.acc)} m)</span></span>
-                {!pos.words && navigator.onLine !== false && <a className="small" href={`https://map.what3words.com/${pos.lat},${pos.lng}`} target="_blank" rel="noreferrer">Show my 3 words</a>}
+                <WhereBlock w={pos} label="Me" sms />
+                <span className="muted tiny">Read the GPS numbers to the operator. "Text my location" works with no data, just a little signal.</span>
               </>
             ) : (
               <span className="muted small">{posErr || 'Getting your GPS position…'}</span>

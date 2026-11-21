@@ -2,10 +2,12 @@ import { useSyncExternalStore } from 'react'
 import { Capacitor, registerPlugin } from '@capacitor/core'
 import type { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation'
 import { getSettings, PUBLIC_URL, readJSON, writeJSON } from './settings'
+import { nearestTrail, plusCode } from './where'
 
 /**
  * Live location sharing.
- * Every few minutes we read the GPS, turn it into a what3words address (with your own API key),
+ * Every few minutes we read the GPS, add a Plus Code and the nearest trail (all free and offline;
+ * a what3words address too if you have set your own key),
  * and post it to a private, unguessable ntfy.sh topic. Your contact opens a link to Spoor's
  * follow page, which reads that topic. No accounts or server of our own are needed.
  */
@@ -23,6 +25,8 @@ export interface Ping {
   lat: number
   lng: number
   acc: number
+  alt?: number | null
+  near?: string
   words?: string
   sent: boolean
   error?: string
@@ -67,12 +71,12 @@ export function followLink(s: ShareSession) {
 export const isNative = Capacitor.isNativePlatform()
 const BG = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation')
 let nativeWatcher: string | null = null
-let nativeFix: { t: number; lat: number; lng: number; acc: number } | null = null
+let nativeFix: { t: number; lat: number; lng: number; acc: number; alt: number | null } | null = null
 
 export function getPosition(): Promise<GeolocationPosition> {
   if (nativeFix && Date.now() - nativeFix.t < 120000) {
     const f = nativeFix
-    return Promise.resolve({ timestamp: f.t, coords: { latitude: f.lat, longitude: f.lng, accuracy: f.acc } } as GeolocationPosition)
+    return Promise.resolve({ timestamp: f.t, coords: { latitude: f.lat, longitude: f.lng, accuracy: f.acc, altitude: f.alt } } as GeolocationPosition)
   }
   return new Promise((ok, fail) => {
     if (!('geolocation' in navigator)) return fail(new Error('Location is not available on this device.'))
@@ -91,10 +95,14 @@ export async function toWords(lat: number, lng: number): Promise<string | undefi
   return data.words as string
 }
 
+/** The update message. parseUpdate() reads it back on the follow page, so keep the line formats stable. */
 export function formatMessage(p: Ping) {
   const lines = []
   if (p.words) lines.push(`///${p.words}`)
   lines.push(`${p.lat.toFixed(5)}, ${p.lng.toFixed(5)} (±${Math.round(p.acc)} m)`)
+  lines.push(`Plus code ${plusCode(p.lat, p.lng)}`)
+  if (p.alt != null) lines.push(`Altitude ${Math.round(p.alt)} m`)
+  if (p.near) lines.push(`Where: ${p.near}`)
   lines.push(`Fix ${new Date(p.t).toISOString()}`)
   return lines.join('\n')
 }
@@ -106,7 +114,7 @@ async function publish(s: ShareSession, p: Ping, title?: string) {
     method: 'POST',
     body: JSON.stringify({
       topic: s.topic,
-      title: title ?? `${name} – ${p.words ? '///' + p.words : 'location update'}`,
+      title: title ?? `${name} – ${p.words ? '///' + p.words : p.near ?? 'location update'}`,
       message: formatMessage(p),
       tags: ['round_pushpin'],
       click: followLink(s),
@@ -123,7 +131,8 @@ export async function sendNow() {
   let ping: Ping | null = null
   try {
     const pos = await getPosition()
-    ping = { t: pos.timestamp || Date.now(), lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy, sent: false }
+    ping = { t: pos.timestamp || Date.now(), lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy, alt: pos.coords.altitude, sent: false }
+    ping.near = await nearestTrail(ping.lat, ping.lng).catch(() => undefined)
     try {
       ping.words = await toWords(ping.lat, ping.lng)
     } catch (e) {
@@ -186,7 +195,7 @@ export function resumeSharing() {
           return
         }
         if (loc) {
-          nativeFix = { t: loc.time ?? Date.now(), lat: loc.latitude, lng: loc.longitude, acc: loc.accuracy }
+          nativeFix = { t: loc.time ?? Date.now(), lat: loc.latitude, lng: loc.longitude, acc: loc.accuracy, alt: loc.altitude }
           tick()
         }
       },
@@ -236,7 +245,7 @@ if (typeof document !== 'undefined') {
 
 // ---------- Following (the contact's side) ----------
 
-export interface Update { t: number; sentAt: number; lat: number; lng: number; acc: number; words?: string; title: string; stopped: boolean }
+export interface Update { t: number; sentAt: number; lat: number; lng: number; acc: number; alt?: number; near?: string; words?: string; title: string; stopped: boolean }
 
 export function parseUpdate(m: { time: number; title?: string; message?: string }): Update | null {
   const msg = m.message ?? ''
@@ -244,11 +253,14 @@ export function parseUpdate(m: { time: number; title?: string; message?: string 
   if (!c) return null
   const w = msg.match(/\/\/\/([^\s/]+\.[^\s/]+\.[^\s/]+)/)
   const f = msg.match(/Fix (\d{4}-\d\d-\d\dT[\d:.]+Z)/)
+  const alt = msg.match(/^Altitude (-?\d+) m$/m)
+  const near = msg.match(/^Where: (.+)$/m)
   const title = m.title ?? ''
   return {
     t: f ? Date.parse(f[1]) : m.time * 1000,
     sentAt: m.time * 1000,
     lat: parseFloat(c[1]), lng: parseFloat(c[2]), acc: c[3] ? parseInt(c[3]) : 0,
+    alt: alt ? parseInt(alt[1]) : undefined, near: near?.[1],
     words: w?.[1], title, stopped: /stopped sharing/i.test(title),
   }
 }

@@ -1,11 +1,15 @@
 // End-to-end check against fake outside services: trails, offline area, wildlife, sharing, follow page.
 import { createRequire } from 'node:module'
-const { chromium } = createRequire(import.meta.url)('playwright')
+const req = createRequire(import.meta.url)
+let pw
+try { pw = req('playwright') } catch { pw = req('playwright-core') }
+const { chromium } = pw
 import { mock } from './serve-mocks.mjs'
 
 const OUT = process.argv[2] || 'test/out'
 const URL = 'http://127.0.0.1:4174/'
-const b = await chromium.launch()
+// CHROME=/path/to/chrome uses a browser you already have instead of Playwright's download.
+const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {})
 const ntfy = []
 const offline = { value: false }
 const errors = []
@@ -109,6 +113,9 @@ await p.getByRole('button', { name: 'Emergency numbers' }).click()
 await p.waitForSelector('.sos-list a')
 const sos = await p.locator('.sos-list').textContent()
 ok(sos.includes('10177') && sos.includes('Mountain Rescue') && sos.includes('112'), 'SOS shows SA numbers offline')
+await p.waitForSelector('.sos-where .pluscode', { timeout: 10000 })
+ok((await p.locator('.sos-where .pluscode').textContent()) === '5G2FX95X+WR', 'SOS shows the Plus Code offline')
+ok((await p.locator('.sos-where a', { hasText: 'Text my location' }).getAttribute('href')).includes('Plus%20code%205G2FX95X'), 'SOS can text the location')
 ok((await p.locator('.modal').textContent()).includes('KwaZulu-Natal'), 'SOS knows the province')
 await p.waitForTimeout(800)
 await p.screenshot({ path: `${OUT}/7b-phone-sos-offline.png` })
@@ -127,6 +134,9 @@ await p.getByRole('button', { name: /Start sharing/ }).click()
 await p.waitForSelector('.live')
 await p.waitForFunction(() => document.querySelector('.ping-list li .good'), null, { timeout: 15000 })
 ok(ntfy.length === 1 && !ntfy[0].message.includes('///'), 'first update sent without what3words (no key)')
+ok(ntfy[0].message.includes('-29.04020, 29.39950 (±9 m)') && ntfy[0].message.includes('Plus code 5G2FX95X+WR'), 'update has GPS and Plus Code: ' + JSON.stringify(ntfy[0].message))
+ok(/^Where: (On |.+ from ).+$/m.test(ntfy[0].message), 'update names the nearest trail: ' + (ntfy[0].message.match(/^Where: .+$/m) || ['none'])[0])
+ok((await p.locator('.live .pluscode').textContent()) === '5G2FX95X+WR', 'sharing card shows the Plus Code')
 // Add key, send again
 await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('spoor.settings')); s.w3wKey = 'TESTKEY'; localStorage.setItem('spoor.settings', JSON.stringify(s)) })
 await p.reload()
@@ -159,6 +169,11 @@ await f.goto(link.replace('https://astrokidstudios.github.io/spoor/', URL))
 await f.waitForSelector('.w3w.big', { timeout: 10000 })
 ok((await f.locator('.w3w.big').textContent()) === '///filled.count.soap', 'contact sees what3words address')
 ok((await f.locator('h1').textContent()) === 'Following Josh', 'contact sees name')
+ok((await f.locator('.coords.big').textContent()) === '-29.04020, 29.39950', 'contact sees GPS coordinates')
+ok((await f.locator('.pluscode').textContent()) === '5G2FX95X+WR', 'contact sees the Plus Code')
+ok((await f.locator('.where-near').count()) === 1, 'contact sees the nearest trail: ' + (await f.locator('.where-near').textContent().catch(() => '')))
+ok((await f.locator('a', { hasText: 'Google Maps directions' }).getAttribute('href')).includes('destination=-29.040200,29.399500'), 'Google Maps directions link')
+ok((await f.locator('a', { hasText: 'Apple Maps' }).getAttribute('href')).startsWith('https://maps.apple.com/?ll=-29.040200,29.399500'), 'Apple Maps link')
 await f.waitForTimeout(1200)
 await f.screenshot({ path: `${OUT}/10-contact-follow.png` })
 

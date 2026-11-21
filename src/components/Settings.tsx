@@ -13,11 +13,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             <input className="input" value={s.myName} onChange={(e) => setSettings({ myName: e.target.value })} placeholder="Shown to people following you" />
           </label>
           <label className="field">
-            <span>what3words API key</span>
-            <input className="input" value={s.w3wKey} onChange={(e) => setSettings({ w3wKey: e.target.value.trim() })} placeholder="Paste your key" autoComplete="off" spellCheck={false} />
-            <small className="muted">Free from <a href="https://developer.what3words.com/public-api" target="_blank" rel="noreferrer">developer.what3words.com</a>. Stays on this device.</small>
-          </label>
-          <label className="field">
             <span>Send location every</span>
             <select className="input" value={s.shareEveryMin} onChange={(e) => setSettings({ shareEveryMin: Number(e.target.value) })}>
               {[2, 5, 10, 15, 30].map((m) => <option key={m} value={m}>{m} minutes</option>)}
@@ -42,6 +37,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
               <span>Location relay server</span>
               <input className="input" value={s.ntfyServer} onChange={(e) => setSettings({ ntfyServer: e.target.value.trim() || 'https://ntfy.sh' })} />
               <small className="muted">Live sharing uses a private, random <a href="https://ntfy.sh" target="_blank" rel="noreferrer">ntfy</a> topic. Updates are kept for 12 hours.</small>
+            </label>
+            <label className="field">
+              <span>what3words API key (optional)</span>
+              <input className="input" value={s.w3wKey} onChange={(e) => setSettings({ w3wKey: e.target.value.trim() })} placeholder="Leave empty to use free GPS and Plus Codes" autoComplete="off" spellCheck={false} />
+              <small className="muted">Not needed. Spoor shares GPS coordinates and a Plus Code for free. Only add a key if you have a paid what3words plan that includes converting coordinates. Stays on this device.</small>
             </label>
           </details>
           <p className="muted tiny">Spoor {__APP_VERSION__}. Map data © OpenStreetMap contributors. Wildlife from iNaturalist. Elevation from Open-Meteo.</p>

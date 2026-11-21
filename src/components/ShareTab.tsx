@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, uid } from '../db'
 import { followLink, isNative, sendNow, startSharing, stopSharing, useShare } from '../share'
 import { setSettings, useSettings } from '../settings'
+import WhereBlock from './WhereBlock'
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
@@ -40,7 +41,7 @@ export default function ShareTab({ onOpenSettings }: { onOpenSettings: () => voi
       <section className="card">
         <h3>Share where you are</h3>
         <p className="muted small">
-          Your contact gets a private link. It shows your <b>what3words</b> address and a map, updated every {settings.shareEveryMin} minutes. They don't need an app or account.
+          Your contact gets a private link. It shows your GPS position, a Plus Code, the nearest trail and a map, updated every {settings.shareEveryMin} minutes. They don't need an app or account.
         </p>
         <label className="field">
           <span>Your name (shown to them)</span>
@@ -60,11 +61,6 @@ export default function ShareTab({ onOpenSettings }: { onOpenSettings: () => voi
           </div>
         )}
         <button className="btn primary block" onClick={start} disabled={adding && !newName.trim()}>📍 Start sharing</button>
-        {!settings.w3wKey && (
-          <p className="note small">
-            No what3words key yet, so your contact will get GPS coordinates instead of three words. <button className="link-btn" onClick={onOpenSettings}>Add a key</button>
-          </p>
-        )}
       </section>
       <Limits />
       {contacts && contacts.length > 0 && (
@@ -129,10 +125,8 @@ function Sharing({ onOpenSettings }: { onOpenSettings: () => void }) {
           <span className="live-dot">Sharing with {session.contactName}</span>
           <span className="muted tiny">since {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
-        {latest?.words ? (
-          <a className="w3w" href={`https://what3words.com/${latest.words}`} target="_blank" rel="noreferrer">///{latest.words}</a>
-        ) : latest ? (
-          <p className="coords">{latest.lat.toFixed(5)}, {latest.lng.toFixed(5)} <a className="small" href={`https://map.what3words.com/${latest.lat},${latest.lng}`} target="_blank" rel="noreferrer">3 words</a></p>
+        {latest ? (
+          <WhereBlock w={latest} label={settings.myName || 'Me'} />
         ) : (
           <p className="coords muted">Getting your first fix…</p>
         )}
@@ -167,7 +161,7 @@ function Sharing({ onOpenSettings }: { onOpenSettings: () => void }) {
             {[...pings].reverse().slice(0, 12).map((p, i) => (
               <li key={i}>
                 <span>{new Date(p.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                <span className="grow">{p.words ? `///${p.words}` : `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`}</span>
+                <span className="grow">{p.near ?? (p.words ? `///${p.words}` : `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`)}</span>
                 <span className={p.sent ? 'good' : 'error'}>{p.sent ? '✓ sent' : '✕ not sent'}</span>
               </li>
             ))}
