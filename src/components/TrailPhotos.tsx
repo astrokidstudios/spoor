@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from 'react'
 import type { Trail } from '../db'
 import { fmtKm } from '../geo'
 import { trailPhotos, type TrailPhoto } from '../photos'
+import { useTrailArea } from '../findtrails'
 import './trail-photos.css'
 
-/** Google Images search for the trail, e.g. "Blue Grotto Trail Magaliesberg hike". */
-export function googleImagesUrl(t: Trail) {
-  const area = t.tags['is_in'] || t.tags['addr:city'] || t.tags['operator'] || ''
+/** Google Images search for the trail, e.g. "Blue Grotto Trail Gauteng, South Africa". */
+export function googleImagesUrl(t: Trail, place = '') {
+  const area = place || t.tags['is_in'] || ''
   const hikey = /\b(trail|hike|walk|route|path|pad|roete)\b/i.test(t.name) ? '' : ' hike'
   const q = `${t.name}${area ? ` ${area}` : ''}${hikey}`.replace(/\s+/g, ' ').trim()
   return `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`
@@ -18,6 +19,7 @@ export default function TrailPhotos({ trail }: { trail: Trail }) {
   const [photos, setPhotos] = useState<TrailPhoto[] | null>(null)
   const [err, setErr] = useState('')
   const [open, setOpen] = useState<number | null>(null)
+  const area = useTrailArea(trail)
   const [all, setAll] = useState(false)
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export default function TrailPhotos({ trail }: { trail: Trail }) {
         <h3 className="section-h"><Images size={15} /> Photos along the way</h3>
         {photos && photos.length > 0 && <span className="muted tiny">{photos.length}</span>}
       </div>
-      <a className="btn small tp-google" href={googleImagesUrl(trail)} target="_blank" rel="noreferrer"><Search size={15} /> See photos on Google Images <ExternalLink size={13} /></a>
+      <a className="btn small tp-google" href={googleImagesUrl(trail, area)} target="_blank" rel="noreferrer"><Search size={15} /> See photos on Google Images <ExternalLink size={13} /></a>
       {!photos && !err && (
         <div className="tp-strip" aria-busy="true">{[0, 1, 2].map((i) => <span key={i} className="tp-thumb tp-skel" />)}</div>
       )}

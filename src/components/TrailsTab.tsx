@@ -2,14 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type BBox, type Trail, type TrailKind } from '../db'
 import { bboxCenter, fmtDuration, fmtKm, intersects, padBBox } from '../geo'
-import { fitBBox, getMap, setMap, useMapState } from '../mapbus'
+import { fitBBox, flyTo, getMap, leaflet, setMap, useMapState } from '../mapbus'
+import { importGpxFile } from '../gpx'
+import { useTrailArea, allTrailsUrl, localTrailsNamed, placesNamed, trailsNamed, type PlaceHit } from '../findtrails'
 import { cachedSearch, difficulty, estimateHours, SHAPE_LABEL, tripOf, fetchProfile, FRESH_MS, KIND_LABEL, offlineTrails, searchAndSave } from '../trails'
 import { KIND_COLOR } from './MapView'
 import Profile from './Profile'
 import TrailPhotos from './TrailPhotos'
 import RouteThumb from './RouteThumb'
 import SaveSheet from './SaveSheet'
-import { ArrowLeftRight, Car, ChevronLeft, CloudDownload, ExternalLink, Globe, PenLine, Play, Search, ShieldCheck, Star } from 'lucide-react'
+import { ArrowLeftRight, Car, ChevronLeft, FileUp, MapPin, Mountain, X, CloudDownload, ExternalLink, Globe, PenLine, Play, Search, ShieldCheck, Star } from 'lucide-react'
 import PlanPanel from './PlanPanel'
 import { isMyRoute, setPlanActive, usePlan } from '../plan'
 
@@ -35,6 +37,8 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   const abort = useRef<AbortController | null>(null)
   const starred = useLiveQuery(() => db.trails.filter((t) => !!t.starred).toArray(), [])
   const savedIds = useLiveQuery(async () => new Set((await db.trails.toArray()).filter((t) => t.packIds.length).map((t) => t.id)), [])
+  const [q, setQ] = useState('')
+  const found = useNameSearch(q)
 
   async function show(list: Trail[], b: BBox) {
     // Keep elevation data / stars we already have.
@@ -125,14 +129,88 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   if (planning) return <PlanPanel onSaved={() => setFilter('saved')} />
   if (selected) return <TrailDetail trail={selected} saved={!!savedIds?.has(selected.id)} onBack={() => setMap({ selectedId: null })} onDownload={onDownload} onStart={onStart} />
 
+  function openTrail(t: Trail) {
+    if (!getMap().trails.some((x) => x.id === t.id)) setMap({ trails: [...getMap().trails, t] })
+    setMap({ selectedId: t.id })
+    fitBBox(t.bbox)
+  }
+  function openPlace(p: PlaceHit) {
+    const m = leaflet()
+    setQ('')
+    // Once the map has moved there, look for trails around it.
+    m?.once('moveend', () => setTimeout(() => void search(), 50))
+    if (p.bbox && (p.bbox[2] - p.bbox[0] > 0.01 || p.bbox[3] - p.bbox[1] > 0.01)) fitBBox(p.bbox, 13)
+    else flyTo(p.at, 13)
+    if (!m) void search()
+  }
+
+  const searchBox = (
+    <form className="name-search" role="search" onSubmit={(e) => { e.preventDefault(); (document.activeElement as HTMLElement | null)?.blur() }}>
+      <Search size={17} aria-hidden="true" />
+      <input type="search" enterKeyHint="search" placeholder="Search trails or places, e.g. Amphitheatre" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search trails or places by name" autoCorrect="off" />
+      {q && <button type="button" className="icon-btn sm" onClick={() => setQ('')} aria-label="Clear search"><X size={16} /></button>}
+    </form>
+  )
+
+  if (q.trim()) {
+    const list = found.trails
+    return (
+      <div className="tab-body">
+        {searchBox}
+        {list.length > 0 && <h3 className="section-h">Trails</h3>}
+        <ul className="trail-list">
+          {list.map((t) => <TrailCard key={t.id} t={t} saved={!!savedIds?.has(t.id)} onClick={() => openTrail(t)} />)}
+        </ul>
+        {found.busy && <p className="note small"><span className="spin" /> Searching all trails{found.trails.length ? ' for more' : ''}…</p>}
+        {found.places.length > 0 && <>
+          <h3 className="section-h">Places</h3>
+          <ul className="place-list">
+            {found.places.map((p) => (
+              <li key={p.id}>
+                <button className="place-row" onClick={() => openPlace(p)}>
+                  <span className="place-ico"><MapPin size={17} /></span>
+                  <span className="grow"><b>{p.name}</b><span className="muted tiny">{p.sub}</span></span>
+                  <span className="muted tiny">Trails here</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>}
+        {!found.busy && !list.length && !found.places.length && found.done && (
+          <p className="note">{found.err || `Nothing called “${q.trim()}” yet. Try fewer words, or a nearby town or peak.`}</p>
+        )}
+        {found.err && (list.length > 0 || found.places.length > 0) && <p className="note small">{found.err}</p>}
+        <p className="credit">Trails and places from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="tab-body">
+      {searchBox}
       <div className="row gap">
         <button className={`btn primary grow ${moved ? 'pulse' : ''}`} onClick={() => search()} disabled={status === 'loading'}>
           {status === 'loading' ? <span className="spin" /> : <Search size={18} strokeWidth={2.4} />} {status === 'loading' ? 'Sniffing out trails…' : moved ? 'Search this area' : 'Find trails on the map'}
         </button>
         <button className="btn" onClick={() => { setMap({ selectedId: null }); setPlanActive(true) }} title="Draw your own route on the map"><PenLine size={17} /> Plan</button>
       </div>
+      <label className="link-btn gpx-import">
+        <FileUp size={15} aria-hidden="true" /> Import a GPX file
+        <input type="file" hidden onChange={async (e) => {
+          const f = e.target.files?.[0]
+          e.target.value = ''
+          if (!f) return
+          try {
+            const t = await importGpxFile(f)
+            setStatus('idle')
+            setMsg('')
+            openTrail(t)
+          } catch (err) {
+            setStatus('error')
+            setMsg((err as Error).message)
+          }
+        }} />
+      </label>
       {savedAt && status !== 'loading' && !moved && (
         <p className="tiny muted saved-at">
           Trails saved {agoText(savedAt)}, so they load instantly.{' '}
@@ -184,8 +262,9 @@ function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: (
         <span className="thumb-tile"><RouteThumb lines={t.lines} color={KIND_COLOR[t.kind]} /></span>
         <span className="grow">
           <span className="trail-name">{t.name}</span>
-          <span className="trail-meta">
-            <span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span> {fmtKm(trip.km)}{trip.shape === 'out-back' ? ' return' : ''} · ~{fmtDuration(est.walk)} · {KIND_LABEL[t.kind]}
+          <span className="trail-meta">{fmtKm(trip.km)}{trip.shape === 'out-back' ? ' return' : ''} · ~{fmtDuration(est.walk)} · {KIND_LABEL[t.kind]}</span>
+          <span className="trail-tags sm">
+            <span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span>
             {d && <span className={`diff d${d.level}`}>{d.label}</span>}
           </span>
         </span>
@@ -199,6 +278,7 @@ function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: (
 function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Trail; saved: boolean; onBack: () => void; onDownload: () => void; onStart: (t: Trail) => void }) {
   const [t, setT] = useState(trail)
   const [profileErr, setProfileErr] = useState(false)
+  const area = useTrailArea(trail)
   useEffect(() => setT(trail), [trail])
   useEffect(() => {
     if (t.profile || navigator.onLine === false) return
@@ -234,11 +314,15 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
 
   return (
     <div className="tab-body">
-      <button className="link-btn back" onClick={onBack}><ChevronLeft size={18} /> All trails</button>
+      <div className="detail-bar"><button className="link-btn back" onClick={onBack}><ChevronLeft size={18} /> All trails</button></div>
       <div className="row between gap" style={{ alignItems: 'flex-start' }}>
         <div>
           <h2 className="trail-title">{t.name}</h2>
-          <p className="muted small"><span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span> {isMyRoute(t) ? 'Your route' : KIND_LABEL[t.kind]}{d && <span className={`diff d${d.level}`}>{d.label}</span>}</p>
+          <div className="trail-tags">
+            <span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span>
+            {d && <span className={`diff d${d.level}`}>{d.label}</span>}
+            <span className="kind-tag">{isMyRoute(t) ? 'Your route' : t.tags.source === 'gpx' ? 'Imported GPX' : KIND_LABEL[t.kind]}</span>
+          </div>
         </div>
         <button className={`icon-btn ${t.starred ? 'on' : ''}`} onClick={() => setSaveOpen(true)} aria-label={t.starred ? 'Saved: change groups' : 'Save trail'} title={t.starred ? 'Saved' : 'Save trail'}><Star size={22} fill={t.starred ? 'currentColor' : 'none'} /></button>
       </div>
@@ -265,6 +349,7 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
       <div className="row gap wrap">
         <button className="btn" onClick={() => { fitBBox(padBBox(t.bbox, 3), 14); onDownload() }}><CloudDownload size={17} /> {saved ? 'Save more of this area' : 'Save for offline'}</button>
         <a className="btn" href={`https://www.google.com/maps/dir/?api=1&destination=${start[0]},${start[1]}`} target="_blank" rel="noreferrer"><Car size={17} /> Drive to start</a>
+        {!isMyRoute(t) && t.tags.source !== 'gpx' && <a className="btn" href={allTrailsUrl(t, area)} target="_blank" rel="noreferrer"><Mountain size={16} /> Find on AllTrails</a>}
         {t.tags.website && <a className="btn" href={t.tags.website} target="_blank" rel="noreferrer"><Globe size={16} /> Website</a>}
         <a className="btn subtle" href={`https://www.openstreetmap.org/${t.id.startsWith('r') ? 'relation/' + t.id.slice(1) : 'way/' + t.id.slice(1).split('-')[0]}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Fix on OSM</a>
       </div>
@@ -279,4 +364,41 @@ function agoText(t: number) {
   if (m < 60) return `${m} min ago`
   const h = Math.round(m / 60)
   return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} day${h >= 36 ? 's' : ''} ago`
+}
+
+/** Name search: trails on this phone straight away, then all trails in the country and matching places. */
+function useNameSearch(q: string) {
+  const [r, setR] = useState<{ trails: Trail[]; places: PlaceHit[]; busy: boolean; done: boolean; err: string }>({ trails: [], places: [], busy: false, done: false, err: '' })
+  useEffect(() => {
+    const text = q.trim()
+    if (!text) { setR({ trails: [], places: [], busy: false, done: false, err: '' }); return }
+    const ac = new AbortController()
+    let local: Trail[] = []
+    const merge = (a: Trail[], b: Trail[]) => [...new Map([...a, ...b].map((t) => [t.id, t])).values()]
+    void localTrailsNamed(text).then((l) => { if (!ac.signal.aborted) { local = l; setR((x) => ({ ...x, trails: l, done: false, err: '' })) } })
+    const t = setTimeout(async () => {
+      if (text.length < 3) { setR((x) => ({ ...x, busy: false, done: true })); return }
+      if (navigator.onLine === false) { setR((x) => ({ ...x, busy: false, done: true, err: 'Offline: showing trails already on your phone.' })); return }
+      setR((x) => ({ ...x, busy: true }))
+      const b = getMap().bounds
+      const center = b ? bboxCenter(b) : savedViewCenter()
+      const [trails, places] = await Promise.allSettled([trailsNamed(text, center, ac.signal), placesNamed(text, center, ac.signal)])
+      if (ac.signal.aborted) return
+      const remote = trails.status === 'fulfilled' ? trails.value : []
+      setR({
+        trails: merge(local, remote),
+        places: places.status === 'fulfilled' ? places.value : [],
+        busy: false,
+        done: true,
+        err: trails.status === 'rejected' ? 'The trail servers are busy, so only some results are showing. Try again in a minute.' : '',
+      })
+    }, 700)
+    return () => { clearTimeout(t); ac.abort() }
+  }, [q])
+  return r
+}
+
+const savedViewCenter = (): [number, number] => {
+  const c = leaflet()?.getCenter()
+  return c ? [c.lat, c.lng] : [-29.035, 29.37]
 }

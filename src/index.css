@@ -703,3 +703,29 @@ html.modal-open .panel-scroll { overflow: hidden; }
 .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .stats.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .stats b { overflow-wrap: anywhere; }
+
+/* Name search on Explore */
+.name-search { display: flex; align-items: center; gap: 8px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 0 6px 0 12px; box-shadow: var(--shadow-sm); }
+.name-search:focus-within { border-color: var(--brand); }
+.name-search > svg { color: var(--muted, #6b7280); flex: 0 0 auto; }
+.name-search input { flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; padding: 12px 0; color: var(--text); }
+.name-search input::-webkit-search-cancel-button { display: none; }
+.place-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.place-row { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 14px; padding: 10px 12px; min-width: 0; }
+.place-row .grow { min-width: 0; }
+.place-row b { display: block; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.place-row .muted.tiny { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.place-row > .muted.tiny { flex: 0 0 auto; display: inline; }
+.place-ico { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: var(--brand-tint); color: var(--brand); flex: 0 0 auto; }
+.gpx-import { justify-self: start; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; }
+
+/* Trail tags: shape, difficulty and kind laid out as evenly spaced pills */
+.trail-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.trail-tags.sm { margin-top: 6px; gap: 5px; }
+.trail-tags .shape, .trail-tags .diff { margin: 0; padding: 3px 9px; font-size: 0.72rem; line-height: 1.3; border-radius: 999px; }
+.trail-tags.sm .shape, .trail-tags.sm .diff { padding: 2px 8px; font-size: 0.68rem; }
+.kind-tag { font-size: 0.8rem; color: var(--muted); font-weight: 600; padding-left: 2px; }
+.trail-card .trail-name { display: block; margin-bottom: 3px; }
+.trail-card .trail-meta { display: block; line-height: 1.35; }
+/* Back to all trails stays pinned at the top while you scroll a trail */
+.detail-bar { position: sticky; top: -16px; z-index: 30; margin: -16px -16px 0; padding: 10px 16px 8px; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }

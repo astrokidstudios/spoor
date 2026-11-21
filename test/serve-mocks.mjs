@@ -40,6 +40,10 @@ export async function mock(ctx, { ntfy = [], offline = { value: false } } = {}) 
       const coords = [[x1, y1], [x1 + (x2 - x1) * 0.5 + 0.002, y1 + (y2 - y1) * 0.5 - 0.002], [x2, y2]]
       return route.fulfill({ json: { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }] }, headers: cors })
     }
+    if (url.includes('photon.komoot.io')) return route.fulfill({ json: { features: [
+      { geometry: { coordinates: [29.3976, -29.0476] }, properties: { osm_id: 1, osm_type: 'N', osm_key: 'natural', osm_value: 'peak', name: 'Cathkin Peak', state: 'KwaZulu-Natal', country: 'South Africa' } },
+      { geometry: { coordinates: [29.42, -29.06] }, properties: { osm_id: 2, osm_type: 'W', osm_key: 'amenity', osm_value: 'bar', name: 'Blindman Pub' } },
+    ] }, headers: cors })
     if (url.includes('overpass')) return route.fulfill({ json: fx.overpass, headers: cors })
     if (url.includes('/observations/species_counts') && url.includes('taxon_id=85553')) return route.fulfill({ json: fx.snakesWide, headers: cors })
     if (url.includes('/observations/species_counts') && url.includes('iconic_taxa=Mammalia,Reptilia')) return route.fulfill({ json: fx.animalsWide, headers: cors })

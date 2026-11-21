@@ -34,7 +34,7 @@ out tags geom;`
 const HEDGE_MS = 8000
 const MIRROR_LIMIT_MS = 30000
 
-async function overpass(q: string, signal?: AbortSignal, onRetry?: (msg: string) => void) {
+export async function overpassQuery(q: string, signal?: AbortSignal, onRetry?: (msg: string) => void) {
   let lastErr: unknown
   for (let round = 0; round < 2; round++) {
     if (signal?.aborted) throw new Error('cancelled')
@@ -217,7 +217,7 @@ export const KIND_LABEL: Record<TrailKind, string> = { hiking: 'Hiking route', w
 export async function fetchTrails(b: BBox, signal?: AbortSignal, onRetry?: (msg: string) => void) {
   const { w, h } = bboxSizeKm(b)
   if (w > MAX_SEARCH_KM * 1.5 || h > MAX_SEARCH_KM * 1.5) throw new Error('Zoom in a little to search for trails in this area.')
-  const data = await overpass(query(b), signal, onRetry)
+  const data = await overpassQuery(query(b), signal, onRetry)
   return parseTrails(data.elements)
 }
 
