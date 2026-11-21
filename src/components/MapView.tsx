@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
-import { Layers, LocateFixed } from 'lucide-react'
+import { Layers, LocateFixed, Star } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
 import '../leaflet-global'
 import 'leaflet-rotate'
 import Compass from './Compass'
 import { memberColor } from '../group'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type Trail } from '../db'
+import { db, photoBlob, type Trail } from '../db'
 import { bindMap, getMap, rememberView, savedView, setMap, useMapState } from '../mapbus'
 import { setSettings, useSettings } from '../settings'
 import { activeSource, makeTileLayer, SOURCES } from '../tiles'
@@ -136,7 +136,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
       m.on('popupopen', async () => {
         const p = await db.photos.get(ph.id)
         if (!p) return
-        const u = URL.createObjectURL(p.blob)
+        const u = URL.createObjectURL(photoBlob(p))
         urls.push(u)
         m.setPopupContent(`<img class="photo-pop" src="${u}" alt="Photo from this walk" />`)
       })
@@ -228,11 +228,21 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
         </button>
         {styleOpen && (
           <div className="style-menu">
-            {Object.values(SOURCES).map((s) => (
-              <button key={s.id} className={settings.mapStyle === s.id ? 'on' : ''} onClick={() => { setSettings({ mapStyle: s.id as never }); setStyleOpen(false) }}>
-                {s.label}{s.needsKey && !settings.thunderforestKey ? ' (needs key)' : ''}
-              </button>
-            ))}
+            {Object.values(SOURCES).map((s) => {
+              const isDefault = (settings.defaultMapStyle ?? 'topo') === s.id
+              return (
+                <div key={s.id} className={`style-row ${settings.mapStyle === s.id ? 'on' : ''}`}>
+                  <button className="style-pick" onClick={() => { setSettings({ mapStyle: s.id as never }); setStyleOpen(false) }}>
+                    {s.label}{s.needsKey && !settings.thunderforestKey ? ' (needs key)' : ''}
+                  </button>
+                  <button className={`style-star ${isDefault ? 'is-default' : ''}`} aria-pressed={isDefault} aria-label={isDefault ? `${s.label} is your default map` : `Make ${s.label} your default map`} title={isDefault ? 'Default map' : 'Make default'}
+                    onClick={() => setSettings({ defaultMapStyle: s.id as never, mapStyle: s.id as never })}>
+                    <Star size={17} fill={isDefault ? 'currentColor' : 'none'} />
+                  </button>
+                </div>
+              )
+            })}
+            <p className="style-hint">Star = the map Trailz opens with</p>
           </div>
         )}
       </div>

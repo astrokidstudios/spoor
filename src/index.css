@@ -729,3 +729,12 @@ html.modal-open .panel-scroll { overflow: hidden; }
 .trail-card .trail-meta { display: block; line-height: 1.35; }
 /* Back to all trails stays pinned at the top while you scroll a trail */
 .detail-bar { position: sticky; top: -16px; z-index: 30; margin: -16px -16px 0; padding: 10px 16px 8px; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+
+/* Map style menu: pick a style, star your default */
+.style-row { display: flex; align-items: center; border-radius: 10px; }
+.style-row.on { background: var(--surface-2); }
+.style-row.on .style-pick { color: var(--brand); }
+.style-menu .style-pick { flex: 1 1 auto; min-width: 0; }
+.style-menu .style-star { flex: 0 0 auto; padding: 8px 10px; color: var(--muted, #8a918b); display: grid; place-items: center; }
+.style-menu .style-star.is-default { color: var(--sun, #f5a524); }
+.style-hint { margin: 2px 8px 4px; font-size: 0.72rem; color: var(--muted, #8a918b); }

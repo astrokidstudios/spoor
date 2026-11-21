@@ -329,17 +329,28 @@ function placeAt(w: Walk, t: number): { lat?: number; lng?: number } {
   return { lat: best.lat, lng: best.lng }
 }
 
+const looksLikeImage = (f: File) => f.type.startsWith('image/') || (!f.type && /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(f.name))
+
+/** Add photos to a walk. Returns how many were added; throws if none could be saved. */
 export async function addPhotos(walkId: string, files: FileList | File[], fromCamera: boolean) {
   const w = state.walk?.id === walkId ? state.walk : await db.walks.get(walkId)
-  if (!w) return 0
+  if (!w) throw new Error("Couldn't find this walk to add photos to.")
   let n = 0
+  let lastErr: unknown
   for (const f of Array.from(files)) {
-    if (!f.type.startsWith('image/')) continue
-    const at = fromCamera ? Date.now() : f.lastModified || Date.now()
-    const photo: Photo = { id: uid(), walkId, at, blob: await shrink(f), ...placeAt(w, fromCamera ? Date.now() : at) }
-    await db.photos.put(photo)
-    n++
+    if (!looksLikeImage(f)) continue
+    try {
+      const at = fromCamera ? Date.now() : f.lastModified || Date.now()
+      const small = await shrink(f)
+      const photo: Photo = { id: uid(), walkId, at, data: await small.arrayBuffer(), type: small.type || f.type || 'image/jpeg', ...placeAt(w, at) }
+      await db.photos.put(photo)
+      n++
+    } catch (e) {
+      lastErr = e
+      console.warn('photo not saved', e)
+    }
   }
+  if (!n && lastErr) throw new Error(`Couldn't save that photo (${(lastErr as Error).message || 'unknown error'}).`)
   return n
 }
 

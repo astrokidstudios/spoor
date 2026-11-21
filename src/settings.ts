@@ -5,6 +5,8 @@ export interface Settings {
   w3wKey: string
   thunderforestKey: string
   mapStyle: 'topo' | 'street' | 'outdoors'
+  /** The map style Trailz opens with (starred in the map style menu). */
+  defaultMapStyle?: 'topo' | 'street' | 'outdoors'
   ntfyServer: string
   shareEveryMin: number
   weightKg: number
@@ -32,7 +34,10 @@ let current: Settings = load()
 
 function load(): Settings {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }
+    const s: Settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }
+    // Each time Trailz opens, start on your starred map style.
+    if (s.defaultMapStyle) s.mapStyle = s.defaultMapStyle
+    return s
   } catch {
     return { ...DEFAULTS }
   }

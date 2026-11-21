@@ -132,8 +132,14 @@ export interface Photo {
   at: number
   lat?: number
   lng?: number
-  blob: Blob
+  /** Older photos kept a Blob; new ones keep raw bytes, which every iPhone web view can store. */
+  blob?: Blob
+  data?: ArrayBuffer
+  type?: string
 }
+
+/** The picture of a walk photo, however it was stored. */
+export const photoBlob = (p: Pick<Photo, 'blob' | 'data' | 'type'>) => p.blob ?? new Blob(p.data ? [p.data] : [], { type: p.type || 'image/jpeg' })
 
 export interface Contact {
   id: string

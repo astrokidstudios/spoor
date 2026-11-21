@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type Activity, type LatLng, type Walk } from '../db'
+import { db, photoBlob, type Activity, type LatLng, type Photo, type Walk } from '../db'
 import { bboxOf, fmtKm, padBBox } from '../geo'
 import { fitBBox, getMap, setMap, useMapState } from '../mapbus'
 import { ACTIVITY_LABEL, addPhotos, deleteWalk, elapsedMs, finishWalk, pauseWalk, renameWalk, resumeWalk, startWalk, useRec } from '../record'
@@ -132,9 +132,13 @@ function ActiveWalk({ walk, onFinished }: { walk: Walk; onFinished: (w: Walk) =>
 
   async function onPhotos(files: FileList | null, camera: boolean) {
     if (!files?.length) return
-    const n = await addPhotos(walk.id, files, camera)
-    setAdded(n ? `${n} photo${n > 1 ? 's' : ''} added` : '')
-    setTimeout(() => setAdded(''), 3000)
+    try {
+      const n = await addPhotos(walk.id, files, camera)
+      setAdded(n ? `${n} photo${n > 1 ? 's' : ''} added` : "That file isn't a photo.")
+    } catch (e) {
+      setAdded((e as Error).message)
+    }
+    setTimeout(() => setAdded(''), 5000)
   }
 
   return (
@@ -210,6 +214,7 @@ function Finished({ walk, onDone }: { walk: Walk; onDone: () => void }) {
 
 function WalkDetail({ walk, onBack }: { walk: Walk; onBack: () => void }) {
   const [confirmDel, setConfirmDel] = useState(false)
+  const [photoMsg, setPhotoMsg] = useState('')
   const [name, setName] = useState(walk.name)
   const photos = useTrackOnMap(walk, false)
   useEffect(() => {
@@ -234,7 +239,12 @@ function WalkDetail({ walk, onBack }: { walk: Walk; onBack: () => void }) {
         {walk.descent ? ` · ${Math.round(walk.descent)} m down` : ''}
         
       </p>
-      <PhotoButtons onFiles={async (f, cam) => { if (f?.length) await addPhotos(walk.id, f, cam) }} />
+      <PhotoButtons onFiles={async (f, cam) => {
+        if (!f?.length) return
+        try { const n = await addPhotos(walk.id, f, cam); setPhotoMsg(n ? `${n} photo${n > 1 ? 's' : ''} added` : "That file isn't a photo.") } catch (e) { setPhotoMsg((e as Error).message) }
+        setTimeout(() => setPhotoMsg(''), 5000)
+      }} />
+      {photoMsg && <p className="small good">{photoMsg}</p>}
       <PhotoStrip photos={photos ?? []} big />
       <button className={`btn ${confirmDel ? 'danger' : 'subtle'}`} onClick={async () => {
         if (!confirmDel) { setConfirmDel(true); setTimeout(() => setConfirmDel(false), 4000); return }
@@ -259,12 +269,12 @@ function PhotoButtons({ onFiles }: { onFiles: (f: FileList | null, camera: boole
   )
 }
 
-function PhotoStrip({ photos, big }: { photos: { id: string; blob: Blob; lat?: number; lng?: number }[]; big?: boolean }) {
+function PhotoStrip({ photos, big }: { photos: Photo[]; big?: boolean }) {
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [open, setOpen] = useState<string | null>(null)
   useEffect(() => {
     const next: Record<string, string> = {}
-    for (const p of photos) next[p.id] = URL.createObjectURL(p.blob)
+    for (const p of photos) next[p.id] = URL.createObjectURL(photoBlob(p))
     setUrls(next)
     return () => Object.values(next).forEach((u) => URL.revokeObjectURL(u))
   }, [photos])
