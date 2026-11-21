@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Trailz</string>
+	<string>$(APP_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -22,14 +22,26 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Trailz uses the camera so you can take photos on your walk. Photos stay on your phone.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Trailz opens your contacts so you can pick who to share your live location with. Only the person you choose is saved in Trailz.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>While you are sharing your location, Trailz keeps sending it to your chosen contact every few minutes, even with the screen locked.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>While you are sharing your location or recording a walk, Trailz keeps using your location with the screen locked.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Trailz shows where you are on the trail map and can share it with your chosen contact.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Trailz uses the compass and motion sensors to turn the map to the direction you are facing.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Trailz can save photos from your walks to your library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Trailz lets you add photos from your library to a walk. Photos stay on your phone.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
