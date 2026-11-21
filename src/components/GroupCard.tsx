@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Check, Link2, LogOut, Share2, Users } from 'lucide-react'
+import { Check, Link2, LogOut, Share2, UserPlus, Users } from 'lucide-react'
 import { db, type Walk } from '../db'
 import { fmtKm } from '../geo'
 import { getGroup, inviteLink, leaveGroup, memberColor, startGroup, useGroup, type Member } from '../group'
 import { flyTo } from '../mapbus'
+import { announceHike, invitedToMyHike, inviteToHike, useAccount } from '../cloud'
+import { InviteFollowers } from './Friends'
 
 const ago = (t: number) => {
   const m = Math.round((Date.now() - t) / 60000)
@@ -14,14 +16,31 @@ const ago = (t: number) => {
 export default function GroupCard({ walk }: { walk: Walk }) {
   const { session, members, error } = useGroup()
   const [copied, setCopied] = useState(false)
+  const { session: account } = useAccount()
+  const [picking, setPicking] = useState<string[] | null>(null)
   if (!walk.trailId) return null
 
-  async function invite() {
+  /** Starts the group (if needed) and lists it under Live now for people who follow you. */
+  async function ensureGroup() {
     let s = getGroup().session
     const t = await db.trails.get(walk.trailId!)
-    if (!t) return
+    if (!t) return null
     if (!s) s = startGroup(t)
     const url = inviteLink(s, t)
+    if (s.host) await announceHike(s.topic, url, t.name)
+    return { s, t, url }
+  }
+
+  async function inviteFollowers() {
+    const g = await ensureGroup()
+    if (!g) return
+    setPicking(await invitedToMyHike())
+  }
+
+  async function invite() {
+    const g = await ensureGroup()
+    if (!g) return
+    const { t, url } = g
     const text = `Walk ${t.name} with me on Trailz. Tap to join and we'll see each other on the map.`
     try {
       if (navigator.share) { await navigator.share({ title: 'Join my walk', text, url }); return }
@@ -35,9 +54,13 @@ export default function GroupCard({ walk }: { walk: Walk }) {
 
   if (!session) {
     return (
-      <button className="btn block group-start" onClick={() => void invite()}>
-        <Users size={18} /> Walk together: invite friends
-      </button>
+      <div className="group-start-wrap">
+        <button className="btn block group-start" onClick={() => void invite()}>
+          <Users size={18} /> Walk together: send an invite link
+        </button>
+        {account && <button className="btn block subtle" onClick={() => void inviteFollowers()}><UserPlus size={17} /> Invite people you follow</button>}
+        {picking && <InviteFollowers already={picking} onInvite={inviteToHike} onClose={() => setPicking(null)} />}
+      </div>
     )
   }
 
@@ -57,8 +80,10 @@ export default function GroupCard({ walk }: { walk: Walk }) {
       {error && <p className="note small">{error}</p>}
       <div className="row gap">
         <button className="btn" onClick={() => void invite()}>{copied ? <><Check size={16} /> Link copied</> : <>{'share' in navigator ? <Share2 size={16} /> : <Link2 size={16} />} Invite</>}</button>
+        {account && session.host && <button className="btn" onClick={() => void inviteFollowers()}><UserPlus size={16} /> Friends</button>}
         <button className="btn subtle" onClick={() => void leaveGroup()}><LogOut size={16} /> Leave group</button>
       </div>
+      {picking && <InviteFollowers already={picking} onInvite={inviteToHike} onClose={() => setPicking(null)} />}
     </div>
   )
 }

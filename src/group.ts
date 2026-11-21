@@ -3,6 +3,7 @@ import { db, type LatLng, type Trail, type TrailKind } from './db'
 import { bboxOf, lineKm } from './geo'
 import { setMap } from './mapbus'
 import { getSettings, PUBLIC_URL, readJSON, writeJSON } from './settings'
+import { endMyHike } from './cloud'
 
 /**
  * Group walks: everyone on one walk follows the same trail and sees each other's position and progress.
@@ -141,6 +142,7 @@ export async function leaveGroup() {
   const s = state.session
   if (!s) return
   stopPolling()
+  if (s.host) void endMyHike(s.topic)
   if (last) await post(s, { ...last, st: 'left' }).catch(() => {})
   last = null
   set({ session: null, members: [] })
@@ -148,6 +150,8 @@ export async function leaveGroup() {
 
 /** After finishing your walk: stop following the group (your 'finished' update has already gone out). */
 export function endGroup() {
+  const s = state.session
+  if (s?.host) void endMyHike(s.topic)
   stopPolling()
   last = null
   set({ session: null, members: [] })

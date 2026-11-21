@@ -7,6 +7,7 @@ import ShareTab from './components/ShareTab'
 import WildlifeTab from './components/WildlifeTab'
 import FollowView from './components/FollowView'
 import JoinView from './components/JoinView'
+import { AccountButton, LiveNow } from './components/Friends'
 import { parseInvite, resumeGroup } from './group'
 import Settings from './components/Settings'
 import SosSheet from './components/SosSheet'
@@ -88,6 +89,7 @@ function Main() {
         {sharing && <button className="pill live-pill" onClick={() => setTab('share')}><span className="dot" /> Live</button>}
         <span className="spacer" />
         <button className="sos-btn" onClick={() => setSosOpen(true)} aria-label="Emergency numbers"><Siren size={16} strokeWidth={2.4} /> SOS</button>
+        <AccountButton />
         <button className="icon-btn" onClick={openSettings} aria-label="Settings" title="Settings">
           <SettingsIcon size={21} strokeWidth={2} />
         </button>
@@ -103,6 +105,7 @@ function Main() {
             ))}
           </nav>
           <div className="panel-scroll">
+            {tab !== 'share' && <LiveNow compact />}
             {tab === 'trails' && <TrailsTab onDownload={() => setTab('offline')} onStart={startTrail} />}
             {tab === 'record' && <RecordTab onOpenSettings={openSettings} />}
             {tab === 'offline' && <PacksTab onOpenSettings={openSettings} />}

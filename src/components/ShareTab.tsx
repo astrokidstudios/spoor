@@ -6,6 +6,7 @@ import { canPickContacts, initials, markShared, pickFromPhone, saveContact, sort
 import { followLink, isNative, sendNow, startSharing, stopSharing, useShare } from '../share'
 import { setSettings, useSettings } from '../settings'
 import WhereBlock from './WhereBlock'
+import { FriendsCard } from './Friends'
 import './people.css'
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
@@ -59,6 +60,7 @@ export default function ShareTab({ onOpenSettings }: { onOpenSettings: () => voi
 
   return (
     <div className="tab-body">
+      <FriendsCard />
       <section className="card">
         <h3>Share where you are</h3>
         <p className="muted small">
