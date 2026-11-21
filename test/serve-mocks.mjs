@@ -10,6 +10,16 @@ export async function mock(ctx, { ntfy = [], offline = { value: false } } = {}) 
     if (offline.value) return route.abort('internetdisconnected')
     const cors = { 'access-control-allow-origin': '*' }
     let m
+    if (url.includes('en.wikipedia.org/w/api.php')) return route.fulfill({ json: { query: { geosearch: [{ title: 'Cathkin Peak' }, { title: 'Winterton' }] } }, headers: cors })
+    if (url.includes('api.openverse.org')) {
+      // Photos found by place name: one good view, one hotel room that should be filtered out.
+      const q = new URL(url).searchParams.get('q')
+      const results = q === 'Cathkin Peak' ? [
+        { id: 'ov1', title: 'Cathkin Peak from the Contour Path', url: 'https://upload.wikimedia.org/x/Cathkin.jpg', thumbnail: 'https://upload.wikimedia.org/x/Cathkin-thumb.jpg', foreign_landing_url: 'https://www.flickr.com/photos/x/1', creator: 'Sam Walker', license: 'by', license_version: '2.0', width: 1024, height: 683 },
+        { id: 'ov2', title: 'Hotel bedroom with a view', url: 'https://upload.wikimedia.org/x/room.jpg', creator: 'Hotel', license: 'by', width: 1024, height: 683 },
+      ] : []
+      return route.fulfill({ json: { result_count: results.length, results }, headers: cors })
+    }
     if (url.includes('commons.wikimedia.org/w/api.php')) {
       // Two real views near the trail, plus a species close-up, a map, a 360° panorama and an animal photo that should be filtered out.
       const img = (name, w = 2000, h = 1500, mime = 'image/jpeg') => ({ thumburl: `https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/${name}/1600px-${name}`, url: `https://upload.wikimedia.org/wikipedia/commons/a/aa/${name}`, descriptionurl: `https://commons.wikimedia.org/wiki/File:${name}`, width: w, height: h, mime, extmetadata: { Artist: { value: '<a href="#">Greg Hiker</a>' }, LicenseShortName: { value: 'CC BY-SA 4.0' }, ObjectName: { value: name.replace(/_/g, ' ').replace('.jpg', '') } } })

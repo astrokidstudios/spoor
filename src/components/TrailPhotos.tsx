@@ -41,7 +41,7 @@ export default function TrailPhotos({ trail }: { trail: Trail }) {
           ))}
         </div>
       )}
-      {photos && photos.length > 0 && <p className="muted tiny">Photos from <a href="https://commons.wikimedia.org" target="_blank" rel="noreferrer">Wikimedia Commons</a>, taken near this trail. Tap one for credit and licence.</p>}
+      {photos && photos.length > 0 && <p className="muted tiny">Openly licensed photos from <a href="https://commons.wikimedia.org" target="_blank" rel="noreferrer">Wikimedia Commons</a> and <a href="https://openverse.org" target="_blank" rel="noreferrer">Openverse</a> (incl. Flickr), taken near this trail or of places on it. Tap one for credit and licence.</p>}
       {open !== null && photos && <Viewer photos={photos} start={open} onClose={() => setOpen(null)} />}
     </section>
   )
@@ -88,7 +88,7 @@ function Viewer({ photos, start, onClose }: { photos: TrailPhoto[]; start: numbe
       {i < photos.length - 1 && <button className="tp-nav next" onClick={() => go(1)} aria-label="Next photo"><ChevronRight size={26} /></button>}
       <div className="tp-cap">
         <b>{p.title}</b>
-        <span>{p.km < 0.05 ? 'On the trail' : `${fmtKm(p.km)} from the trail`} · {p.author} · {p.licence}</span>
+        <span>{p.about ? `Photo of ${p.about}` : p.km < 0.05 ? 'On the trail' : `${fmtKm(p.km)} from the trail`} · {p.author} · {p.licence}</span>
         <a href={p.page} target="_blank" rel="noreferrer">Source <ExternalLink size={12} /></a>
       </div>
     </div>
