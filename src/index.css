@@ -668,3 +668,6 @@ html.modal-open .panel-scroll { overflow: hidden; }
 .join .route-thumb { background: var(--surface-2); border-radius: 16px; }
 .join-hero { display: flex; gap: 14px; align-items: center; }
 .join input { width: 100%; }
+.offline-prompt.card-lite { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; justify-items: start; }
+.join-offline { display: flex; gap: 10px; align-items: flex-start; }
+.join-offline input { width: auto; margin-top: 3px; }

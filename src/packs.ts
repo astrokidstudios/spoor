@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { BBox, Pack } from './db'
 import { db, uid } from './db'
-import { bboxCenter, countTiles, intersects } from './geo'
+import { bboxCenter, countTiles, intersects, padBBox } from './geo'
 import { lookupPlace, rememberPlace } from './emergency'
 import { activeSource, deleteTiles, downloadTiles, SOURCES, type TileSource } from './tiles'
 import { cachedSearch, FRESH_MS, fetchTrails, pruneSearches, saveTrails } from './trails'
@@ -120,3 +120,15 @@ export async function tidyPacks() {
   const stuck = await db.packs.where('id').noneOf([...jobs.keys()]).filter((p) => p.status === 'downloading').toArray()
   for (const p of stuck) await db.packs.update(p.id, { status: 'partial', error: 'Download was interrupted. Tap Update to finish it.' })
 }
+
+/** Is this area already saved (or being saved) for offline use? */
+export async function areaSaved(b: BBox) {
+  const packs = await db.packs.toArray()
+  return packs.some((p) => p.bbox[0] <= b[0] && p.bbox[1] <= b[1] && p.bbox[2] >= b[2] && p.bbox[3] >= b[3])
+}
+
+/** The offline area to save for a trail: the trail plus 1.5 km around it. */
+export const trailPackPlan = (t: { bbox: BBox }) => planPack(padBBox(t.bbox, 1.5), 13)
+
+/** Save a trail's map, trails and wildlife for offline use. */
+export const saveTrailOffline = (t: { name: string; bbox: BBox }) => startPack(t.name, trailPackPlan(t))

@@ -7,12 +7,14 @@ import { setSettings, useSettings } from '../settings'
 import { estimateHours, KIND_LABEL, SHAPE_LABEL, tripOf } from '../trails'
 import RouteThumb from './RouteThumb'
 import { KIND_COLOR } from './MapView'
+import { areaSaved, saveTrailOffline, trailPackPlan } from '../packs'
 
 /** Opened from a friend's group walk link: shows the trail and joins you to the walk. */
 export default function JoinView({ invite }: { invite: Invite }) {
   const settings = useSettings()
   const [name, setName] = useState(settings.myName)
   const [busy, setBusy] = useState(false)
+  const [offline, setOffline] = useState(true)
   const t = invite.trail
   const trip = tripOf(t)
   const est = estimateHours(t)
@@ -23,6 +25,7 @@ export default function JoinView({ invite }: { invite: Invite }) {
     setBusy(true)
     setSettings({ myName: name.trim() })
     const trail = await joinGroup(invite)
+    if (offline && navigator.onLine !== false && !(await areaSaved(trail.bbox))) void saveTrailOffline(trail)
     if (!getRec().walk) await startWalk({ activity: trail.kind === 'running' ? 'run' : 'hike', trail })
     try { sessionStorage.setItem('spoor.tab', 'record') } catch { /* ignore */ }
     history.replaceState(null, '', location.pathname + location.search)
@@ -44,6 +47,9 @@ export default function JoinView({ invite }: { invite: Invite }) {
       <p className="small">Join and you'll all follow this trail together. Everyone's position and how far along they are shows on the map, updating every 30 seconds while you walk.</p>
       <label className="small">Your name (so the others know who you are)
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sam" maxLength={30} />
+      </label>
+      <label className="join-offline small"><input type="checkbox" checked={offline} onChange={(e) => setOffline(e.target.checked)} />
+        <span><b>Save it for offline</b>: the map, trails, and the plants and animals of this area (about {Math.max(1, Math.round(trailPackPlan(t).mb))} MB), so it all works without signal.</span>
       </label>
       {already && <p className="note small">You're already recording "{already.name}". Joining adds you to the group on that walk.</p>}
       <button className="btn primary block" disabled={!name.trim() || busy} onClick={() => void join()}><Users size={18} /> {busy ? 'Joining…' : 'Join the walk'}</button>

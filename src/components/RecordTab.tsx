@@ -9,6 +9,7 @@ import { tripOf } from '../trails'
 import { Camera, Check, ChevronLeft, Flag, Footprints, Images, MountainSnow, Pause, PersonStanding, Play, Square, Trash2, TriangleAlert, Trophy } from 'lucide-react'
 import RouteThumb from './RouteThumb'
 import GroupCard from './GroupCard'
+import OfflinePrompt from './OfflinePrompt'
 
 export default function RecordTab({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { walk } = useRec()
@@ -115,6 +116,7 @@ function ActiveWalk({ walk, onFinished }: { walk: Walk; onFinished: (w: Walk) =>
   const recording = walk.status === 'recording'
   useTick(recording)
   const photos = useTrackOnMap(walk, true)
+  const trail = useLiveQuery(() => (walk.trailId ? db.trails.get(walk.trailId) : undefined), [walk.trailId])
   const fitted = useRef(false)
   useEffect(() => {
     if (fitted.current) return
@@ -161,6 +163,7 @@ function ActiveWalk({ walk, onFinished }: { walk: Walk; onFinished: (w: Walk) =>
         </div>
       )}
       <GroupCard walk={walk} />
+      {trail && <OfflinePrompt trail={trail} />}
       {gpsError && <p className="note small">{gpsError}</p>}
       {!walk.points.length && !gpsError && recording && <p className="muted small">Waiting for a GPS fix…</p>}
       <div className="rec-controls">
