@@ -13,10 +13,12 @@ interface RecState {
   /** Live progress along the followed trail. */
   progress: TrailProgress | null
   gpsError: string
+  /** Set briefly when you pass each whole kilometre, for a little cheer. */
+  cheer: number | null
 }
 export interface TrailProgress { doneKm: number; leftKm: number; pct: number; offTrailM: number | null }
 
-let state: RecState = { walk: null, progress: null, gpsError: '' }
+let state: RecState = { walk: null, progress: null, gpsError: '', cheer: null }
 const listeners = new Set<() => void>()
 function set(patch: Partial<RecState>) {
   state = { ...state, ...patch }
@@ -173,7 +175,13 @@ export function onFix(f: Omit<WalkPoint, 'seg'>) {
         altRef = f.alt
       }
     }
+    const before = Math.floor(w.distanceKm)
     w.distanceKm += km
+    if (Math.floor(w.distanceKm) > before) {
+      const n = Math.floor(w.distanceKm)
+      setTimeout(() => set({ cheer: n }), 0)
+      setTimeout(() => { if (state.cheer === n) set({ cheer: null }) }, 3500)
+    }
     w.calories += stretchCalories(km, f.t - last.t, climb, w.weightKg)
   } else if (f.alt != null) {
     altRef = f.alt

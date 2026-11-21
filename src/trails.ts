@@ -169,19 +169,28 @@ export const SHAPE_LABEL: Record<Shape, string> = { loop: 'Loop', 'out-back': 'O
 
 /**
  * Loop or out and back? Use the mapper's roundtrip tag if there is one. Otherwise look at the loose ends of the
- * route (ends that don't join another piece): none, or two that finish within 300 m of each other, means a loop.
+ * whether the route, joined end to end, finishes within 300 m of where it starts.
  */
-export function shapeOf(t: Pick<Trail, 'lines' | 'tags'>): Shape {
+export function shapeOf(t: Pick<Trail, 'lines' | 'tags'> & { name?: string }): Shape {
   if (t.tags.roundtrip === 'yes') return 'loop'
   if (t.tags.roundtrip === 'no') return 'out-back'
-  const ends: LatLng[] = []
-  for (const l of t.lines) if (l.length > 1) ends.push(l[0], l[l.length - 1])
-  const JOIN_KM = 0.03
-  const loose = ends.filter((e, i) => !ends.some((o, j) => j !== i && (j >> 1) !== (i >> 1) && haversineKm(e, o) < JOIN_KM))
-  if (loose.length < 2) return 'loop'
-  let far = 0
-  for (let i = 0; i < loose.length; i++) for (let j = i + 1; j < loose.length; j++) far = Math.max(far, haversineKm(loose[i], loose[j]))
-  return far <= 0.3 ? 'loop' : 'out-back'
+  if (/\b(loop|circuit|circular|round)\b/i.test(t.name ?? t.tags.name ?? '')) return 'loop'
+  // Chain the mapped pieces end to end (always joining the nearest loose end), then compare where the chain starts and ends.
+  const rest = t.lines.filter((l) => l.length > 1).map((l) => [...l])
+  if (!rest.length) return 'out-back'
+  let chain = rest.shift()!
+  while (rest.length) {
+    const tail = chain[chain.length - 1]
+    let best = 0, flip = false, d = Infinity
+    rest.forEach((l, i) => {
+      const a = haversineKm(tail, l[0]), b = haversineKm(tail, l[l.length - 1])
+      if (a < d) { d = a; best = i; flip = false }
+      if (b < d) { d = b; best = i; flip = true }
+    })
+    const next = rest.splice(best, 1)[0]
+    chain = chain.concat(flip ? next.reverse() : next)
+  }
+  return haversineKm(chain[0], chain[chain.length - 1]) <= 0.3 ? 'loop' : 'out-back'
 }
 
 /** The whole outing: an out-and-back trail is walked twice, so the distance doubles and you climb both ways. */

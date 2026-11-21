@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Activity, type LatLng, type Walk } from '../db'
 import { bboxOf, fmtKm, padBBox } from '../geo'
@@ -10,18 +10,26 @@ import { tripOf } from '../trails'
 export default function RecordTab({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { walk } = useRec()
   const [viewId, setViewId] = useState<string | null>(null)
+  const [cheerWalk, setCheerWalk] = useState<Walk | null>(null)
   const walks = useLiveQuery(() => db.walks.where('status').equals('done').reverse().sortBy('startedAt'), [])
   const viewed = walks?.find((w) => w.id === viewId)
 
   useEffect(() => () => setMap({ track: null }), [])
 
-  if (walk) return <ActiveWalk walk={walk} />
+  if (walk) return <ActiveWalk walk={walk} onFinished={setCheerWalk} />
+  if (cheerWalk) return <Finished walk={cheerWalk} onDone={() => { setViewId(cheerWalk.id); setCheerWalk(null) }} />
   if (viewed) return <WalkDetail walk={viewed} onBack={() => setViewId(null)} />
   return (
     <div className="tab-body">
       <StartCard onOpenSettings={onOpenSettings} />
       <h3 className="section-h">Your walks</h3>
-      {!walks?.length && <p className="note">Walks you record show up here, with the route, stats and photos. They're kept on this device.</p>}
+      {!walks?.length && (
+        <div className="empty">
+          <span className="empty-art" aria-hidden="true">🥾</span>
+          <b>No walks yet</b>
+          <p className="muted small">Lace up and tap Start. Your route, stats and photos land here, saved on this device.</p>
+        </div>
+      )}
       <ul className="walk-list">
         {walks?.map((w) => (
           <li key={w.id}>
@@ -48,9 +56,9 @@ function StartCard({ onOpenSettings }: { onOpenSettings: () => void }) {
   const [follow, setFollow] = useState(true)
   return (
     <div className="card record-start">
-      <div className="chips">
+      <div className="seg seg-full" role="group" aria-label="Activity">
         {(['walk', 'hike', 'run'] as Activity[]).map((a) => (
-          <button key={a} className={`chip ${activity === a ? 'on' : ''}`} onClick={() => setActivity(a)}>{ACTIVITY_LABEL[a]}</button>
+          <button key={a} className={activity === a ? 'on' : ''} onClick={() => setActivity(a)}>{ACTIVITY_LABEL[a]}</button>
         ))}
       </div>
       {sel ? (
@@ -61,7 +69,10 @@ function StartCard({ onOpenSettings }: { onOpenSettings: () => void }) {
       ) : (
         <p className="muted small">To see your progress along a trail, open it in Trails and tap <b>▶ Start this trail</b>.</p>
       )}
-      <button className="btn primary block big-start" onClick={() => void startWalk({ activity, trail: sel && follow ? sel : null })}>▶ Start {ACTIVITY_LABEL[activity].toLowerCase()}</button>
+      <button className="big-start" onClick={() => void startWalk({ activity, trail: sel && follow ? sel : null })} aria-label={`Start ${ACTIVITY_LABEL[activity].toLowerCase()}`}>
+        <span className="big-start-ico" aria-hidden="true">{activity === 'run' ? '🏃' : activity === 'hike' ? '🥾' : '🚶'}</span>
+        <span>▶ Start {ACTIVITY_LABEL[activity].toLowerCase()}</span>
+      </button>
       <p className="muted tiny">
         Calories use your weight ({settings.weightKg} kg). <button className="link-btn" onClick={onOpenSettings}>Change</button>
       </p>
@@ -94,8 +105,8 @@ function useTrackOnMap(walk: Walk, follow: boolean) {
   return photos
 }
 
-function ActiveWalk({ walk }: { walk: Walk }) {
-  const { progress, gpsError } = useRec()
+function ActiveWalk({ walk, onFinished }: { walk: Walk; onFinished: (w: Walk) => void }) {
+  const { progress, gpsError, cheer } = useRec()
   const [confirmEnd, setConfirmEnd] = useState(false)
   const [added, setAdded] = useState('')
   const recording = walk.status === 'recording'
@@ -129,7 +140,8 @@ function ActiveWalk({ walk }: { walk: Walk }) {
           <p className={`small ${recording ? 'rec-on' : 'muted'}`}>{recording ? '● Recording' : '❚❚ Paused'}{walk.trailName ? ` · following ${walk.trailName}` : ''}</p>
         </div>
       </div>
-      <div className="rec-time">{fmtClock(ms, true)}</div>
+      {cheer && <div className="cheer" role="status" key={cheer}>🎉 {cheer} km down!{cheer % 5 === 0 ? ' Legend.' : ''}</div>}
+      <div className={`rec-time ${recording ? '' : 'paused'}`}>{fmtClock(ms, true)}</div>
       <div className="stats">
         <div><b>{fmtKm(walk.distanceKm)}</b><span>distance</span></div>
         <div><b>{Math.round(walk.ascent)} m</b><span>climb</span></div>
@@ -155,7 +167,7 @@ function ActiveWalk({ walk }: { walk: Walk }) {
         <button className={`btn block ${confirmEnd ? 'danger' : ''}`} onClick={async () => {
           if (!confirmEnd) { setConfirmEnd(true); setTimeout(() => setConfirmEnd(false), 4000); return }
           const done = await finishWalk()
-          if (done) setMap({ follow: false })
+          if (done) { setMap({ follow: false }); onFinished(done) }
         }}>{confirmEnd ? 'Tap again to finish' : '■ Finish'}</button>
       </div>
       {added && <p className="small good">{added}</p>}
@@ -163,6 +175,28 @@ function ActiveWalk({ walk }: { walk: Walk }) {
       <p className="muted tiny">Keep Spoor open while you walk{' '}
         {'standalone' in navigator || matchMedia('(display-mode: standalone)').matches ? '' : '(or use the iPhone app) '}
         so it keeps recording. Time doesn't count while paused.</p>
+    </div>
+  )
+}
+
+const CHEERS = ['Nice one', 'Lekker', 'Great effort', 'Well walked', 'Boots well earned']
+
+function Finished({ walk, onDone }: { walk: Walk; onDone: () => void }) {
+  const name = useSettings().myName.trim().split(' ')[0]
+  const [word] = useState(() => CHEERS[Math.floor(Math.random() * CHEERS.length)])
+  return (
+    <div className="tab-body finished">
+      <div className="confetti" aria-hidden="true">{Array.from({ length: 18 }, (_, i) => <i key={i} style={{ '--i': i } as CSSProperties} />)}</div>
+      <span className="empty-art" aria-hidden="true">🏔️</span>
+      <h2 className="trail-title">{word}{name ? `, ${name}` : ''}!</h2>
+      <p className="muted">{walk.name}</p>
+      <div className="stats">
+        <div><b>{fmtKm(walk.distanceKm)}</b><span>distance</span></div>
+        <div><b>{fmtClock(walk.activeMs)}</b><span>time</span></div>
+        <div><b>{Math.round(walk.ascent)} m</b><span>climb</span></div>
+        <div><b>{Math.round(walk.calories)}</b><span>kcal</span></div>
+      </div>
+      <button className="btn primary block" onClick={onDone}>See your walk</button>
     </div>
   )
 }

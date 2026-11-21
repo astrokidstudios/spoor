@@ -123,7 +123,7 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
     <div className="tab-body">
       <div className="row gap">
         <button className={`btn primary grow ${moved ? 'pulse' : ''}`} onClick={() => search()} disabled={status === 'loading'}>
-          {status === 'loading' ? <span className="spin" /> : '🔎'} {status === 'loading' ? 'Finding trails…' : moved ? 'Search this area' : 'Find trails on the map'}
+          {status === 'loading' ? <span className="spin" /> : '🔎'} {status === 'loading' ? 'Sniffing out trails…' : moved ? 'Search this area' : 'Find trails on the map'}
         </button>
         <button className="btn" onClick={() => { setMap({ selectedId: null }); setPlanActive(true) }} title="Draw your own route on the map">✏️ Plan</button>
       </div>
@@ -156,6 +156,8 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   )
 }
 
+const KIND_EMOJI: Record<Trail['kind'], string> = { hiking: '🥾', walking: '🚶', running: '🏃', path: '🌿' }
+
 const pick = (t?: Trail) => (t ? { profile: t.profile, ascent: t.ascent, descent: t.descent, starred: t.starred, packIds: t.packIds } : {})
 
 function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: () => void }) {
@@ -165,7 +167,7 @@ function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: (
   return (
     <li>
       <button className="trail-card" onClick={onClick}>
-        <span className="trail-swatch" style={{ background: KIND_COLOR[t.kind] }} />
+        <span className="trail-ico" style={{ color: KIND_COLOR[t.kind] }} aria-hidden="true">{KIND_EMOJI[t.kind]}</span>
         <span className="grow">
           <span className="trail-name">{t.name}</span>
           <span className="trail-meta">
@@ -230,7 +232,7 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
         <button className={`icon-btn ${t.starred ? 'on' : ''}`} onClick={toggleStar} aria-label={t.starred ? 'Unsave trail' : 'Save trail'} title={t.starred ? 'Saved' : 'Save trail'}>★</button>
       </div>
       <div className="stats">
-        <div><b>{fmtKm(trip.km)}</b><span>{trip.shape === 'out-back' ? 'there & back' : 'loop'}</span></div>
+        <div><b>{fmtKm(trip.km)}</b><span>{trip.shape === 'out-back' ? 'return' : 'loop'}</span></div>
         <div><b>{trip.climb != null ? `${Math.round(trip.climb)} m` : '–'}</b><span>climb</span></div>
         <div><b>~{fmtDuration(est.walk)}</b><span>walking</span></div>
         <div><b>~{fmtDuration(est.run)}</b><span>running</span></div>
