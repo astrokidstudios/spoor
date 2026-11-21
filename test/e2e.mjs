@@ -183,6 +183,21 @@ await p.waitForTimeout(4000)
 await p.getByRole('tab', { name: /Share/ }).click()
 ok(ntfy.length > before, `automatic update after 5 minutes (${before} → ${ntfy.length})`)
 
+// Compass: heading up follows the phone, a second tap snaps back to north.
+await p.getByRole('tab', { name: /Explore/ }).click()
+const needle = () => p.locator('.map-btn.compass svg').evaluate((e) => e.style.transform)
+ok(await p.locator('.map-btn.compass.north').count() === 1, 'compass shows north up')
+await p.locator('.map-btn.compass').click()
+ok(await p.locator('.map-btn.compass.heading').count() === 1, 'tap compass: map turns with the phone')
+for (let i = 0; i < 25; i++) await p.evaluate(() => { const e = new Event('deviceorientation'); Object.assign(e, { webkitCompassHeading: 90, alpha: 270, absolute: false }); window.dispatchEvent(e) })
+await p.waitForTimeout(300)
+const turned = await needle()
+ok(/rotate\((2[6-9]\d|-[89]\d)/.test(turned), `facing east turns the map: ${turned}`)
+await p.screenshot({ path: `${OUT}/compass-heading.png` })
+await p.locator('.map-btn.compass').click()
+await p.waitForTimeout(300)
+ok(/rotate\(0deg\)/.test(await needle()) && await p.locator('.map-btn.compass.north').count() === 1, 'second tap: back to north up')
+
 // ---- Contact's follow page (different browser, no app) ----
 const { ctx: c2 } = await context({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, permissions: [] })
 const f = await c2.newPage()

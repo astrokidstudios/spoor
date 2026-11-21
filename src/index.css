@@ -652,3 +652,10 @@ html.modal-open .panel-scroll { overflow: hidden; }
   .settings .grab { background: #cfd5ce; box-shadow: none; }
   .photo-view { padding: 0 12px; }
 }
+
+/* Compass */
+.map-btn.compass { position: relative; display: grid; place-items: center; color: var(--text); }
+.map-btn.compass svg { transition: transform 0.12s linear; }
+.map-btn.compass.heading { background: #2563eb; color: #fff; }
+.map-btn.compass.heading path:last-of-type { opacity: 0.7; }
+.compass-msg { top: auto; bottom: 16px; right: 16px; left: 16px; }
