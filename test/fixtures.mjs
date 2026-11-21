@@ -32,6 +32,10 @@ const taxa = [
   [47377, 'Opistophthalmus', 'Burrowing Scorpion', 'Arachnida', 6], [12345, 'Pelea capreolus', 'Grey Rhebok', 'Mammalia', 33],
 ]
 export const speciesCounts = { results: taxa.map(([id, name, common, group, count]) => ({ count, taxon: { id, name, preferred_common_name: common, iconic_taxon_name: group, default_photo: { medium_url: `https://inaturalist-open-data.s3.amazonaws.com/photos/${id}/medium.jpg`, attribution: '(c) Test Photographer, some rights reserved (CC BY)' }, conservation_status: id === 5352 ? { status_name: 'Endangered' } : undefined } })) }
+const mk = (list) => ({ results: list.map(([id, name, common, group, count]) => ({ count, taxon: { id, name, preferred_common_name: common, iconic_taxon_name: group, default_photo: { medium_url: `https://inaturalist-open-data.s3.amazonaws.com/photos/${id}/medium.jpg`, attribution: '(c) Test' } } })) })
+// Wider-area searches: snakes, and other animals within ~25 km.
+export const snakesWide = mk([[30001, 'Bitis atropos', 'Berg Adder', 'Reptilia', 9], [26039, 'Bitis arietans', 'Puff Adder', 'Reptilia', 40], [30362, 'Hemachatus haemachatus', 'Rinkhals', 'Reptilia', 25], [30005, 'Psammophylax rhombeatus', 'Spotted Grass Snake', 'Reptilia', 12]])
+export const animalsWide = mk([[41001, 'Panthera pardus', 'Leopard', 'Mammalia', 3], [43151, 'Papio ursinus', 'Chacma Baboon', 'Mammalia', 150]])
 export const taxaDetail = (ids) => ({ results: ids.map((id) => ({ id: Number(id), wikipedia_summary: `<b>${taxa.find((t) => t[0] == id)?.[2]}</b> is found in the uKhahlamba-Drakensberg, often seen on grassy slopes and along streams.` })) })
 
 const palette = { Mammalia: '#a0643c', Aves: '#3c78a0', Reptilia: '#6b8e23', Amphibia: '#2e8b57', Insecta: '#d2691e', Plantae: '#c71585', Arachnida: '#555' }

@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react'
 import type { BBox, Pack } from './db'
 import { db, uid } from './db'
-import { countTiles } from './geo'
+import { bboxCenter, countTiles } from './geo'
+import { lookupPlace, rememberPlace } from './emergency'
 import { activeSource, deleteTiles, downloadTiles, SOURCES, type TileSource } from './tiles'
 import { fetchTrails, saveTrails } from './trails'
 import { saveWildlife } from './wildlife'
@@ -51,6 +52,8 @@ async function runPack(pack: Pack, src: TileSource) {
   const errors: string[] = []
   try {
     setJob(pack.id, 'Finding trails…', 2)
+    // Which country / province, so the right emergency numbers work offline here.
+    lookupPlace(bboxCenter(pack.bbox), ac.signal).then((place) => { rememberPlace(place); return db.packs.update(pack.id, place) }).catch(() => {})
     try {
       const trails = await fetchTrails(pack.bbox, ac.signal)
       await saveTrails(trails, pack.id)

@@ -11,7 +11,10 @@ export async function mock(ctx, { ntfy = [], offline = { value: false } } = {}) 
     const cors = { 'access-control-allow-origin': '*' }
     let m
     if (url.includes('overpass')) return route.fulfill({ json: fx.overpass, headers: cors })
+    if (url.includes('/observations/species_counts') && url.includes('taxon_id=85553')) return route.fulfill({ json: fx.snakesWide, headers: cors })
+    if (url.includes('/observations/species_counts') && url.includes('iconic_taxa=Mammalia,Reptilia')) return route.fulfill({ json: fx.animalsWide, headers: cors })
     if (url.includes('/observations/species_counts')) return route.fulfill({ json: fx.speciesCounts, headers: cors })
+    if (url.includes('nominatim')) return route.fulfill({ json: { address: { country_code: 'za', state: 'KwaZulu-Natal' } }, headers: cors })
     if ((m = url.match(/\/v1\/taxa\/([\d,]+)/))) return route.fulfill({ json: fx.taxaDetail(m[1].split(',')), headers: cors })
     if ((m = url.match(/photos\/(\d+)\//))) return route.fulfill({ body: await fx.photo(m[1]), contentType: 'image/jpeg', headers: cors })
     if ((m = url.match(/\/(\d+)\/(\d+)\/(\d+)\.png/))) return route.fulfill({ body: await fx.tile(+m[1], +m[2], +m[3]), contentType: 'image/png', headers: cors })

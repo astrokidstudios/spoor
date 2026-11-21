@@ -247,3 +247,19 @@ details summary { cursor: pointer; }
 .follow-card { padding: 14px 16px; display: grid; gap: 8px; background: var(--surface); border-bottom: 1px solid var(--line); }
 .follow-map { flex: 1; min-height: 260px; }
 .follow-foot { padding: 8px 16px; padding-bottom: max(8px, env(safe-area-inset-bottom)); color: var(--muted); }
+
+/* ---------- Safety ---------- */
+.chip.warn { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); color: var(--danger); }
+.chip.warn.on { background: var(--danger); color: #fff; border-color: var(--danger); }
+.danger-badge { position: absolute; top: 6px; left: 6px; font-size: 0.68rem; font-weight: 800; padding: 2px 7px; border-radius: 999px; color: #fff; background: #b42318; max-width: calc(100% - 12px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.danger-badge.caution { background: #b45309; }
+.safety { border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; background: var(--surface-2); font-size: 0.92rem; }
+.safety.danger { background: color-mix(in srgb, #b42318 12%, var(--surface)); border: 1px solid color-mix(in srgb, #b42318 35%, transparent); }
+.safety.caution { background: color-mix(in srgb, #b45309 12%, var(--surface)); border: 1px solid color-mix(in srgb, #b45309 35%, transparent); }
+.safety.danger b { color: var(--danger); }
+.safety details p { margin-top: 6px; }
+.sos-btn { background: #d92d20; color: #fff; border: 0; border-radius: 999px; font-weight: 900; padding: 6px 12px; letter-spacing: 0.04em; }
+.sos-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.sos-list a { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--text); background: var(--surface-2); border-radius: 14px; padding: 10px 14px; }
+.sos-list a b { font-family: var(--head); font-size: 1.25rem; color: #d92d20; min-width: 6.5em; }
+.sos-where { background: var(--surface-2); border-radius: 14px; padding: 10px 14px; display: grid; gap: 4px; }

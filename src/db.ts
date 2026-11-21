@@ -39,6 +39,9 @@ export interface Pack {
   status: 'downloading' | 'ready' | 'partial'
   error?: string
   createdAt: number
+  /** ISO country code of the area (for emergency numbers), e.g. "ZA". */
+  country?: string
+  region?: string // province / state
 }
 
 export interface Species {
@@ -56,6 +59,9 @@ export interface Species {
   summary?: string
   wikiUrl?: string
   status?: string // conservation status
+  snake?: boolean
+  /** Not recorded inside the area itself but within a wider radius around it. */
+  nearby?: boolean
 }
 
 export interface Sighting {

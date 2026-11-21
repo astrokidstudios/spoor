@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Species } from '../db'
 import { getMap } from '../mapbus'
-import { fetchSpecies, GROUPS, groupInfo } from '../wildlife'
+import { fetchAreaWildlife, GROUPS, groupInfo } from '../wildlife'
+import { safetyFor } from '../safety'
 
 type Row = Omit<Species, 'id' | 'packId'> & { id?: string }
 
@@ -30,7 +31,7 @@ export default function WildlifeTab() {
     setLoading(true)
     setErr('')
     try {
-      setLive(await fetchSpecies(b))
+      setLive(await fetchAreaWildlife(b))
     } catch {
       setErr(navigator.onLine === false ? "You're offline. Save an area in the Offline tab to keep its wildlife on your phone." : 'Could not reach iNaturalist. Try again in a moment.')
     } finally {
@@ -47,7 +48,9 @@ export default function WildlifeTab() {
     rows.forEach((r) => m.set(r.group, (m.get(r.group) ?? 0) + 1))
     return m
   }, [rows])
-  const shown = rows.filter((r) => (group === 'all' || (group === 'seen' ? sightings?.has(r.taxonId) : r.group === group)) && (!q || `${r.common} ${r.name}`.toLowerCase().includes(q.toLowerCase())))
+  const dangerCount = rows.filter((r) => safetyFor(r.name, r.group, r.snake).danger).length
+  const snakeCount = rows.filter((r) => r.snake).length
+  const shown = rows.filter((r) => (group === 'all' || (group === 'seen' ? sightings?.has(r.taxonId) : group === 'danger' ? !!safetyFor(r.name, r.group, r.snake).danger : group === 'snakes' ? r.snake : r.group === group)) && (!q || `${r.common} ${r.name}`.toLowerCase().includes(q.toLowerCase())))
 
   return (
     <div className="tab-body">
@@ -61,6 +64,8 @@ export default function WildlifeTab() {
       <input className="input" type="search" placeholder="Search, e.g. eland, sugarbird, protea" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="chips">
         <button className={`chip ${group === 'all' ? 'on' : ''}`} onClick={() => setGroup('all')}>All {rows.length || ''}</button>
+        {dangerCount > 0 && <button className={`chip warn ${group === 'danger' ? 'on' : ''}`} onClick={() => setGroup('danger')}>⚠ Be careful {dangerCount}</button>}
+        {snakeCount > 0 && <button className={`chip ${group === 'snakes' ? 'on' : ''}`} onClick={() => setGroup('snakes')}>🐍 Snakes {snakeCount}</button>}
         {GROUPS.filter((g) => counts.get(g.id)).map((g) => (
           <button key={g.id} className={`chip ${group === g.id ? 'on' : ''}`} onClick={() => setGroup(g.id)}>{g.emoji} {g.label} {counts.get(g.id)}</button>
         ))}
@@ -77,6 +82,7 @@ export default function WildlifeTab() {
               <span className="sp-name">{r.common}</span>
               <span className="sp-sci">{r.name}</span>
               {sightings?.has(r.taxonId) && <span className="seen">✓</span>}
+              <DangerBadge r={r} />
             </button>
           </li>
         ))}
@@ -85,6 +91,12 @@ export default function WildlifeTab() {
       {open && <SpeciesModal r={open} seen={!!sightings?.has(open.taxonId)} onClose={() => setOpen(null)} />}
     </div>
   )
+}
+
+function DangerBadge({ r }: { r: Row }) {
+  const s = safetyFor(r.name, r.group, r.snake)
+  if (!s.danger) return null
+  return <span className={`danger-badge ${s.danger}`}>{s.danger === 'danger' ? '⚠ ' : ''}{s.label}</span>
 }
 
 function Photo({ r, big }: { r: Row; big?: boolean }) {
@@ -105,6 +117,23 @@ function Photo({ r, big }: { r: Row; big?: boolean }) {
   )
 }
 
+function SafetyBox({ r }: { r: Row }) {
+  const s = safetyFor(r.name, r.group, r.snake)
+  return (
+    <div className={`safety ${s.danger ?? 'info'}`}>
+      <b>{s.danger ? `⚠ ${s.label}` : 'If you see one'}</b>
+      <p>{s.tip}</p>
+      {s.firstAid && (
+        <details>
+          <summary>First aid if bitten or stung</summary>
+          <p>{s.firstAid}</p>
+          <p className="tiny">Emergency numbers are under the red SOS button at the top.</p>
+        </details>
+      )}
+    </div>
+  )
+}
+
 function SpeciesModal({ r, seen, onClose }: { r: Row; seen: boolean; onClose: () => void }) {
   const g = groupInfo(r.group)
   async function toggleSeen() {
@@ -119,7 +148,8 @@ function SpeciesModal({ r, seen, onClose }: { r: Row; seen: boolean; onClose: ()
         <div className="modal-body">
           <h2>{r.common}</h2>
           <p className="muted"><i>{r.name}</i> · {g.emoji} {g.label}</p>
-          <p className="small">Recorded {r.count.toLocaleString()} time{r.count === 1 ? '' : 's'} in this area{r.status ? ` · ${r.status}` : ''}.</p>
+          <p className="small">Recorded {r.count.toLocaleString()} time{r.count === 1 ? '' : 's'} {r.nearby ? 'within about 25 km of this area' : 'in this area'}{r.status ? ` · ${r.status}` : ''}.</p>
+          <SafetyBox r={r} />
           {r.summary ? <p>{r.summary}</p> : <p className="muted small">No description saved for this one.</p>}
           <div className="row gap wrap">
             <button className={`btn ${seen ? 'primary' : ''}`} onClick={toggleSeen}>{seen ? '✓ Seen it' : 'I saw this'}</button>
