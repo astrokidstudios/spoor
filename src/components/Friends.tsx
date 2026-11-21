@@ -11,6 +11,9 @@ import { setSettings, useSettings } from '../settings'
 import { fmtKm } from '../geo'
 import { initials } from '../contacts'
 import './friends.css'
+import { BatteryAlerts } from './LowBattery'
+import { useBatteryAlerts } from '../cloud'
+import { previewLowBattery } from '../battery'
 
 function Sheet({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
   return createPortal(<Modal label={label} onClose={onClose} className="settings"><div className="modal-body">{children}</div></Modal>, document.body)
@@ -127,10 +130,12 @@ function ProfileSheet({ onClose }: { onClose: () => void }) {
 export function LiveNow({ compact }: { compact?: boolean }) {
   const hikes = useLiveHikes()
   const fresh = useNewFollowers()
+  const batt = useBatteryAlerts()
   const [open, setOpen] = useState<string | null>(null)
-  if (!hikes.length && !fresh.length) return null
+  if (!hikes.length && !fresh.length && !batt.length) return null
   return (
     <section className={`live-now ${compact ? 'compact' : ''}`} aria-label="Live hikes and new followers">
+      <BatteryAlerts />
       {hikes.map((h) => <LiveHike key={h.id} h={h} onOpen={() => setOpen(h.host)} />)}
       {fresh.length > 0 && <NewFollowers list={fresh} onOpen={setOpen} />}
       {open && <PersonSheet userId={open} onClose={() => setOpen(null)} />}
@@ -265,6 +270,10 @@ export function FriendsCard() {
       <label className="toggle-row small">
         <input type="checkbox" checked={settings.shareWalks} onChange={(e) => setSettings({ shareWalks: e.target.checked })} />
         <span>Show my finished walks to followers <span className="muted">(distance, time and trail; never your route or start point)</span></span>
+      </label>
+      <label className="toggle-row small">
+        <input type="checkbox" checked={settings.lowBatteryAlert} onChange={(e) => setSettings({ lowBatteryAlert: e.target.checked })} />
+        <span>At 15% battery on a walk, tell my followers and get a ready-made WhatsApp message <button type="button" className="link-btn" onClick={(e) => { e.preventDefault(); previewLowBattery() }}>See it</button></span>
       </label>
       {open && <PersonSheet userId={open} onClose={() => { setOpen(null); reload() }} />}
     </section>

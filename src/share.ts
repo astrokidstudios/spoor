@@ -30,6 +30,8 @@ export interface Ping {
   words?: string
   sent: boolean
   error?: string
+  /** Battery left, in %, when the phone is running low. */
+  battery?: number
 }
 
 interface State {
@@ -49,6 +51,7 @@ function set(patch: Partial<State>) {
   writeJSON(KEY + '.pings', state.pings.slice(-50))
   listeners.forEach((l) => l())
 }
+export const getShare = () => state
 export const useShare = () => useSyncExternalStore((l) => (listeners.add(l), () => listeners.delete(l)), () => state)
 
 const randomTopic = () => {
@@ -103,6 +106,7 @@ export function formatMessage(p: Ping) {
   lines.push(`Plus code ${plusCode(p.lat, p.lng)}`)
   if (p.alt != null) lines.push(`Altitude ${Math.round(p.alt)} m`)
   if (p.near) lines.push(`Where: ${p.near}`)
+  if (p.battery != null) lines.push(`Battery ${p.battery}%`)
   lines.push(`Fix ${new Date(p.t).toISOString()}`)
   return lines.join('\n')
 }
@@ -121,6 +125,26 @@ async function publish(s: ShareSession, p: Ping, title?: string) {
     }),
   })
   if (!res.ok) throw new Error(`Could not send (${res.status})`)
+}
+
+/** Phone is nearly flat: send the latest position straight away, saying how much battery is left. */
+export async function sendBatteryUpdate(level: number) {
+  const s = state.session
+  if (!s) return
+  const pct = Math.round(level * 100)
+  let ping: Ping | undefined = [...state.pings].reverse().find((p) => p.sent) ?? state.pings[state.pings.length - 1]
+  try {
+    const pos = await getPosition()
+    ping = { t: pos.timestamp || Date.now(), lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy, alt: pos.coords.altitude, near: ping?.near, sent: false }
+  } catch { /* use the last one */ }
+  if (!ping) return
+  const name = getSettings().myName.trim() || 'Your hiker'
+  const p: Ping = { ...ping, battery: pct, sent: false, error: undefined }
+  try {
+    await publish(s, p, `${name}'s phone is on ${pct}% battery`)
+    p.sent = true
+  } catch (e) { p.error = (e as Error).message }
+  set({ pings: [...state.pings, p] })
 }
 
 /** Take a GPS fix and send it. With no signal it fails quietly and the timer tries again 30 s later. */
@@ -245,7 +269,7 @@ if (typeof document !== 'undefined') {
 
 // ---------- Following (the contact's side) ----------
 
-export interface Update { t: number; sentAt: number; lat: number; lng: number; acc: number; alt?: number; near?: string; words?: string; title: string; stopped: boolean }
+export interface Update { t: number; sentAt: number; lat: number; lng: number; acc: number; alt?: number; near?: string; words?: string; title: string; stopped: boolean; battery?: number }
 
 export function parseUpdate(m: { time: number; title?: string; message?: string }): Update | null {
   const msg = m.message ?? ''
@@ -255,13 +279,14 @@ export function parseUpdate(m: { time: number; title?: string; message?: string 
   const f = msg.match(/Fix (\d{4}-\d\d-\d\dT[\d:.]+Z)/)
   const alt = msg.match(/^Altitude (-?\d+) m$/m)
   const near = msg.match(/^Where: (.+)$/m)
+  const bat = msg.match(/^Battery (\d+)%$/m)
   const title = m.title ?? ''
   return {
     t: f ? Date.parse(f[1]) : m.time * 1000,
     sentAt: m.time * 1000,
     lat: parseFloat(c[1]), lng: parseFloat(c[2]), acc: c[3] ? parseInt(c[3]) : 0,
     alt: alt ? parseInt(alt[1]) : undefined, near: near?.[1],
-    words: w?.[1], title, stopped: /stopped sharing/i.test(title),
+    words: w?.[1], title, stopped: /stopped sharing/i.test(title), battery: bat ? parseInt(bat[1]) : undefined,
   }
 }
 

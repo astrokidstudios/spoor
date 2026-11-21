@@ -329,7 +329,8 @@ function placeAt(w: Walk, t: number): { lat?: number; lng?: number } {
   return { lat: best.lat, lng: best.lng }
 }
 
-const looksLikeImage = (f: File) => f.type.startsWith('image/') || (!f.type && /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(f.name))
+// The picker only offers photos, but the iPhone app hands camera shots over with no type or file name, so only skip clear non-photos.
+const looksLikeImage = (f: File) => !/^(video|audio|text|application\/(pdf|zip))/.test(f.type) && f.size > 0
 
 /** Add photos to a walk. Returns how many were added; throws if none could be saved. */
 export async function addPhotos(walkId: string, files: FileList | File[], fromCamera: boolean) {

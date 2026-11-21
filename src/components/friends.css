@@ -45,3 +45,13 @@ button.live-ico { border: 0; }
 .walk-nums { display: grid; text-align: right; flex: none; }
 .profile-head .grow { flex: 1; min-width: 0; }
 .live-note { display: flex; align-items: center; gap: 7px; margin: 0; color: var(--muted); } .live-note .dot { width: 8px; height: 8px; border-radius: 50%; background: #e5484d; flex: none; animation: pulse 1.6s ease-in-out infinite; }
+
+/* Low battery */
+.batt-alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, #dc2626 7%, var(--surface)); box-shadow: 0 0 0 1.5px color-mix(in srgb, #dc2626 35%, var(--line)); }
+.batt-alert .grow { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.batt-alert b { line-height: 1.25; }
+.batt-links { margin-top: 6px; }
+.low-batt-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, #dc2626 14%, transparent); color: #b91c1c; flex: 0 0 auto; }
+.low-batt-sheet h3 { margin: 0; }
+.low-batt-msg { white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 0.86rem; background: var(--surface-2); border-radius: 12px; padding: 10px 12px; margin: 0; max-height: 34vh; overflow-y: auto; }
+.low-batt { display: inline-flex; align-items: center; gap: 3px; color: #b91c1c; font-weight: 700; margin-right: 6px; }

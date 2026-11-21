@@ -34,6 +34,8 @@ export interface Member {
   walkedKm: number
   status: 'recording' | 'paused' | 'done' | 'left'
   me: boolean
+  /** Battery left in %, only sent once it's low. */
+  battery?: number
 }
 
 interface State { session: GroupSession | null; members: Member[]; error: string }
@@ -176,7 +178,7 @@ export function endGroup() {
 }
 
 // ---- Sending my position ----
-interface Msg { v: 1; m: string; n: string; la: number; ln: number; a: number; t: number; p: number | null; d: number | null; w: number; st: Member['status'] }
+interface Msg { v: 1; m: string; n: string; la: number; ln: number; a: number; t: number; p: number | null; d: number | null; w: number; st: Member['status']; b?: number }
 let last: Msg | null = null
 let lastSent = 0
 const SEND_MS = 30000
@@ -193,7 +195,7 @@ async function post(s: GroupSession, msg: Msg) {
 export function reportPosition(r: { lat: number; lng: number; acc: number; pct: number | null; doneKm: number | null; walkedKm: number; status: Member['status'] }) {
   const s = state.session
   if (!s) return
-  const msg: Msg = { v: 1, m: s.me, n: getSettings().myName.trim() || 'Walker', la: +r.lat.toFixed(5), ln: +r.lng.toFixed(5), a: Math.round(r.acc), t: Date.now(), p: r.pct, d: r.doneKm != null ? +r.doneKm.toFixed(2) : null, w: +r.walkedKm.toFixed(2), st: r.status }
+  const msg: Msg = { v: 1, m: s.me, n: getSettings().myName.trim() || 'Walker', la: +r.lat.toFixed(5), ln: +r.lng.toFixed(5), a: Math.round(r.acc), t: Date.now(), p: r.pct, d: r.doneKm != null ? +r.doneKm.toFixed(2) : null, w: +r.walkedKm.toFixed(2), st: r.status, ...(lowBattery != null ? { b: lowBattery } : {}) }
   const changed = last?.st !== msg.st
   last = msg
   mergeMine(msg)
@@ -203,7 +205,20 @@ export function reportPosition(r: { lat: number; lng: number; acc: number; pct: 
 }
 
 // ---- Reading everyone's position ----
-const toMember = (m: Msg, me: string): Member => ({ id: m.m, name: m.n, lat: m.la, lng: m.ln, acc: m.a, t: m.t, pct: m.p, doneKm: m.d, walkedKm: m.w, status: m.st, me: m.m === me })
+const toMember = (m: Msg, me: string): Member => ({ id: m.m, name: m.n, lat: m.la, lng: m.ln, acc: m.a, t: m.t, pct: m.p, doneKm: m.d, walkedKm: m.w, status: m.st, me: m.m === me, battery: m.b })
+
+let lowBattery: number | null = null
+/** Phone is running low: tell the group now, and keep saying so with each update. */
+export function reportBattery(level: number) {
+  lowBattery = Math.round(level * 100)
+  const s = state.session
+  if (!s || !last) return
+  const msg: Msg = { ...last, t: Date.now(), b: lowBattery }
+  last = msg
+  lastSent = Date.now()
+  mergeMine(msg)
+  void post(s, msg).catch(() => {})
+}
 
 function mergeMine(m: Msg) {
   const s = state.session

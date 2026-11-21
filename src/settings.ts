@@ -14,6 +14,8 @@ export interface Settings {
   shareWalks: boolean
   /** When you start a walk on a trail, followers see it under Live now and can join. */
   liveToFollowers: boolean
+  /** At 15% battery on a walk, alert followers and your live-location contact, and offer a WhatsApp message. */
+  lowBatteryAlert: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -26,6 +28,7 @@ const DEFAULTS: Settings = {
   weightKg: 75,
   shareWalks: true,
   liveToFollowers: true,
+  lowBatteryAlert: true,
 }
 
 const KEY = 'spoor.settings'

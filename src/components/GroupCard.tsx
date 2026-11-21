@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Link2, LogOut, Share2, UserPlus, Users } from 'lucide-react'
+import { Check, Link2, LogOut, Share2, UserPlus, Users, BatteryLow } from 'lucide-react'
 import { db, type Walk } from '../db'
 import { fmtKm } from '../geo'
 import { getGroup, inviteLink, leaveGroup, memberColor, startGroup, useGroup, type Member } from '../group'
@@ -103,7 +103,7 @@ function MemberRow({ m, myKm }: { m: Member; myKm: number }) {
       <div className="member-main">
         <div className="row between small"><b>{m.me ? `${m.name} (you)` : m.name}</b><span className="muted">{m.me ? status : rel}</span></div>
         {m.pct != null && <div className="bar thin"><span style={{ width: `${m.pct}%`, background: memberColor(m.id) }} /></div>}
-        <div className="row between tiny muted"><span>{m.pct != null ? `${m.pct}% · ${fmtKm(km)}` : fmtKm(m.walkedKm) + ' walked'}</span><span>{m.me ? '' : status}</span></div>
+        <div className="row between tiny muted"><span>{m.pct != null ? `${m.pct}% · ${fmtKm(km)}` : fmtKm(m.walkedKm) + ' walked'}</span><span>{m.battery != null && <span className="low-batt"><BatteryLow size={13} /> {m.battery}%</span>}{m.me ? '' : status}</span></div>
       </div>
     </li>
   )

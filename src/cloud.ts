@@ -190,6 +190,7 @@ function startWatching() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hikes' }, changed)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hike_invites' }, changed)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'follows' }, changed)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'battery_alerts' }, changed)
     .subscribe()
   poll = window.setInterval(changed, 60000)
   changed()
@@ -300,4 +301,40 @@ export async function shareFinishedWalk(w: { id: string; name: string; trailName
 export async function unshareWalk(id: string) {
   if (!myId()) return
   await supabase.from('shared_walks').delete().eq('id', id).then(() => {}, () => {})
+}
+
+// ---------- Low battery alerts from people I follow ----------
+
+export interface BatteryAlert { id: string; user_id: string; level: number; lat: number | null; lng: number | null; trail_name: string | null; follow_url: string | null; created_at: string; profile?: Profile }
+const DISMISSED_KEY = 'trailz.batteryDismissed'
+
+export async function batteryAlerts(): Promise<BatteryAlert[]> {
+  const id = myId()
+  if (!id) return []
+  const since = new Date(Date.now() - 12 * 3600e3).toISOString()
+  const { data } = await supabase.from('battery_alerts').select('id, user_id, level, lat, lng, trail_name, follow_url, created_at, profiles!battery_alerts_user_id_fkey(id, username, display_name)').neq('user_id', id).gt('created_at', since).order('created_at', { ascending: false }).limit(10)
+  const gone = new Set(readJSON<string[]>(DISMISSED_KEY, []))
+  const seen = new Set<string>()
+  return ((data ?? []) as unknown as (BatteryAlert & { profiles: Profile | null })[])
+    .filter((a) => !gone.has(a.id) && !seen.has(a.user_id) && seen.add(a.user_id))
+    .map((a) => ({ ...a, profile: a.profiles ?? undefined }))
+}
+
+export function dismissBatteryAlert(id: string) {
+  writeJSON(DISMISSED_KEY, [...readJSON<string[]>(DISMISSED_KEY, []).slice(-50), id])
+  changed()
+}
+
+export function useBatteryAlerts() {
+  const { session } = useAccount()
+  const [list, setList] = useState<BatteryAlert[]>([])
+  useEffect(() => {
+    let alive = true
+    const load = () => { batteryAlerts().then((a) => alive && setList(a)).catch(() => {}) }
+    load()
+    changeListeners.add(load)
+    window.addEventListener('focus', load)
+    return () => { alive = false; changeListeners.delete(load); window.removeEventListener('focus', load) }
+  }, [session?.user.id])
+  return session ? list : []
 }
