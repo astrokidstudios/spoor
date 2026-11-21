@@ -34,7 +34,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           <label className="field">
             <span>Thunderforest API key (optional)</span>
             <input className="input" value={s.thunderforestKey} onChange={(e) => setSettings({ thunderforestKey: e.target.value.trim() })} placeholder="For bigger offline areas" autoComplete="off" spellCheck={false} />
-            <small className="muted">The free community map servers ask apps not to download big areas, so Spoor keeps those small. A free hobby key from <a href="https://www.thunderforest.com/pricing/" target="_blank" rel="noreferrer">thunderforest.com</a> lets you save larger, more detailed areas.</small>
+            <small className="muted">The free community map servers ask apps not to download big areas, so Trailz keeps those small. A free hobby key from <a href="https://www.thunderforest.com/pricing/" target="_blank" rel="noreferrer">thunderforest.com</a> lets you save larger, more detailed areas.</small>
           </label>
           <details>
             <summary className="small">Advanced</summary>
@@ -46,10 +46,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             <label className="field">
               <span>what3words API key (optional)</span>
               <input className="input" value={s.w3wKey} onChange={(e) => setSettings({ w3wKey: e.target.value.trim() })} placeholder="Leave empty to use free GPS and Plus Codes" autoComplete="off" spellCheck={false} />
-              <small className="muted">Not needed. Spoor shares GPS coordinates and a Plus Code for free. Only add a key if you have a paid what3words plan that includes converting coordinates. Stays on this device.</small>
+              <small className="muted">Not needed. Trailz shares GPS coordinates and a Plus Code for free. Only add a key if you have a paid what3words plan that includes converting coordinates. Stays on this device.</small>
             </label>
           </details>
-          <p className="muted tiny">Spoor {__APP_VERSION__}. Map data © OpenStreetMap contributors. Wildlife from iNaturalist. Elevation from Open-Meteo.</p>
+          <p className="muted tiny">Trailz {__APP_VERSION__}. Map data © OpenStreetMap contributors. Wildlife from iNaturalist. Elevation from Open-Meteo.</p>
         </div>
       </div>
     </div>

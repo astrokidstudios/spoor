@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Spoor: find trails, hike offline, share where you are.",
+  "description": "Trailz: find trails, hike offline, share where you are.",
   "author": "Josh",
   "main": "electron/main.cjs",
   "scripts": {
@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "app.spoor.trails",
-    "productName": "Spoor",
+    "productName": "Trailz",
     "directories": {
       "output": "release"
     },
@@ -49,10 +49,10 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Spoor-Setup-${version}.exe"
+      "artifactName": "Trailz-Setup-${version}.exe"
     },
     "portable": {
-      "artifactName": "Spoor-Portable-${version}.exe"
+      "artifactName": "Trailz-Portable-${version}.exe"
     },
     "mac": {
       "target": [
@@ -66,8 +66,8 @@
       "icon": "build/icon-1024.png",
       "category": "public.app-category.navigation",
       "extendInfo": {
-        "NSLocationWhenInUseUsageDescription": "Spoor uses your location to show you on the trail map and to share it with your contact.",
-        "NSLocationUsageDescription": "Spoor uses your location to show you on the trail map and to share it with your contact."
+        "NSLocationWhenInUseUsageDescription": "Trailz uses your location to show you on the trail map and to share it with your contact.",
+        "NSLocationUsageDescription": "Trailz uses your location to show you on the trail map and to share it with your contact."
       }
     }
   },

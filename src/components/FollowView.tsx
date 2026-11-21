@@ -17,7 +17,7 @@ export default function FollowView({ topic, name, server }: { topic: string; nam
   const fitted = useRef(false)
 
   useEffect(() => {
-    document.title = `Following ${name || 'a hiker'} · Spoor`
+    document.title = `Following ${name || 'a hiker'} · Trailz`
     const m = L.map(el.current!, { zoomControl: true }).setView([-29, 29.4], 6)
     makeTileLayer(SOURCES.topo).addTo(m)
     layer.current = L.layerGroup().addTo(m)
@@ -81,7 +81,7 @@ export default function FollowView({ topic, name, server }: { topic: string; nam
             <p className={stale ? 'error' : ''}>
               {mins < 1 ? 'Updated just now' : `Updated ${mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)} h ${mins % 60} min`} ago`} · {new Date(last.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </p>
-            {stale && !stopped && <p className="tiny">No update for a while. They may be out of signal or have Spoor closed; mountain areas often have no coverage.</p>}
+            {stale && !stopped && <p className="tiny">No update for a while. They may be out of signal or have Trailz closed; mountain areas often have no coverage.</p>}
             <button className="btn small subtle" onClick={() => map.current?.setView([last.lat, last.lng], 15)}>Centre map</button>
           </>
         ) : (

@@ -6,7 +6,7 @@ import { getMap } from './mapbus'
 /**
  * Plot your own route by tapping points on the map.
  * With "magnetic" on, each leg follows real paths: online via BRouter (free, OpenStreetMap-based),
- * offline via the trails Spoor already has on the map or saved. With it off, legs are straight lines.
+ * offline via the trails Trailz already has on the map or saved. With it off, legs are straight lines.
  */
 
 export type PlanMode = 'walk' | 'bike'
@@ -74,7 +74,7 @@ export async function addPoint(p: LatLng) {
 
 function noteFor(leg: Leg, magnetic: boolean) {
   if (!magnetic) return ''
-  if (leg.via === 'offline') return 'No signal: snapped to trails Spoor already has.'
+  if (leg.via === 'offline') return 'No signal: snapped to trails Trailz already has.'
   if (!leg.snapped) return 'No path found here, so this part is a straight line.'
   return ''
 }

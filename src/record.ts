@@ -120,16 +120,16 @@ function startGps() {
   stopGps()
   if (isNative) {
     BG.addWatcher(
-      { backgroundTitle: 'Spoor is recording', backgroundMessage: 'Recording your route, distance and climb.', requestPermissions: true, stale: false, distanceFilter: 5 },
+      { backgroundTitle: 'Trailz is recording', backgroundMessage: 'Recording your route, distance and climb.', requestPermissions: true, stale: false, distanceFilter: 5 },
       (loc, err) => {
-        if (err) { set({ gpsError: err.code === 'NOT_AUTHORIZED' ? 'Allow Spoor to use your location "Always" so it keeps recording with the screen locked.' : 'GPS problem: ' + err.message }); return }
+        if (err) { set({ gpsError: err.code === 'NOT_AUTHORIZED' ? 'Allow Trailz to use your location "Always" so it keeps recording with the screen locked.' : 'GPS problem: ' + err.message }); return }
         if (loc) onFix({ t: loc.time ?? Date.now(), lat: loc.latitude, lng: loc.longitude, alt: loc.altitude ?? null, acc: loc.accuracy })
       },
     ).then((id) => { nativeWatcher = id }).catch(() => {})
   } else if ('geolocation' in navigator) {
     watchId = navigator.geolocation.watchPosition(
       (p) => onFix({ t: p.timestamp || Date.now(), lat: p.coords.latitude, lng: p.coords.longitude, alt: p.coords.altitude, acc: p.coords.accuracy }),
-      (e) => set({ gpsError: e.code === 1 ? 'Location permission is off for Spoor.' : 'Waiting for GPS…' }),
+      (e) => set({ gpsError: e.code === 1 ? 'Location permission is off for Trailz.' : 'Waiting for GPS…' }),
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 60000 },
     )
     void keepAwake()

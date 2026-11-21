@@ -179,7 +179,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
         first = false
       },
       (e) => {
-        setLocErr(e.code === 1 ? 'Location permission is off for Spoor.' : 'Could not find your location.')
+        setLocErr(e.code === 1 ? 'Location permission is off for Trailz.' : 'Could not find your location.')
         if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current)
         watchRef.current = null
       },

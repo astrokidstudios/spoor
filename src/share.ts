@@ -8,7 +8,7 @@ import { nearestTrail, plusCode } from './where'
  * Live location sharing.
  * Every few minutes we read the GPS, add a Plus Code and the nearest trail (all free and offline;
  * a what3words address too if you have set your own key),
- * and post it to a private, unguessable ntfy.sh topic. Your contact opens a link to Spoor's
+ * and post it to a private, unguessable ntfy.sh topic. Your contact opens a link to Trailz's
  * follow page, which reads that topic. No accounts or server of our own are needed.
  */
 
@@ -80,7 +80,7 @@ export function getPosition(): Promise<GeolocationPosition> {
   }
   return new Promise((ok, fail) => {
     if (!('geolocation' in navigator)) return fail(new Error('Location is not available on this device.'))
-    navigator.geolocation.getCurrentPosition(ok, (e) => fail(new Error(e.code === 1 ? 'Location permission is off for Spoor.' : 'Could not get a GPS fix.')), {
+    navigator.geolocation.getCurrentPosition(ok, (e) => fail(new Error(e.code === 1 ? 'Location permission is off for Trailz.' : 'Could not get a GPS fix.')), {
       enableHighAccuracy: true, timeout: 25000, maximumAge: 60000,
     })
   })
@@ -183,7 +183,7 @@ export function resumeSharing() {
     // Each location update wakes the app, even in the background, and sends when an update is due.
     BG.addWatcher(
       {
-        backgroundTitle: 'Spoor is sharing your location',
+        backgroundTitle: 'Trailz is sharing your location',
         backgroundMessage: `Sending your location to ${state.session.contactName} every ${state.session.everyMin} minutes.`,
         requestPermissions: true,
         stale: false,
@@ -191,7 +191,7 @@ export function resumeSharing() {
       },
       (loc, err) => {
         if (err) {
-          if (err.code === 'NOT_AUTHORIZED') set({ lastError: 'Allow Spoor to use your location "Always" in Settings so it can share with the screen locked.' })
+          if (err.code === 'NOT_AUTHORIZED') set({ lastError: 'Allow Trailz to use your location "Always" in Settings so it can share with the screen locked.' })
           return
         }
         if (loc) {

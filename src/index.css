@@ -1,4 +1,4 @@
-/* ===== Spoor: earthy, calm, outdoorsy ===== */
+/* ===== Trailz: earthy, calm, outdoorsy ===== */
 :root {
   --brand: #1d4a3a;
   --brand-2: #2f6b52;
@@ -308,7 +308,7 @@ img.photo-pop { width: 220px; border-radius: 8px; display: block; }
 .seg button.on { background: var(--brand); color: #fff; }
 
 /* =====================================================================
-   Spoor 2.0 look: crisp, professional, with a splash of energy.
+   Trailz 2.0 look: crisp, professional, with a splash of energy.
    ===================================================================== */
 :root {
   --brand: #157347;

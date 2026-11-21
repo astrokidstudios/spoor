@@ -24,8 +24,8 @@ export default defineConfig({
       injectRegister: false, // registered in main.tsx, only on http(s)
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Spoor – trails, offline maps & wildlife',
-        short_name: 'Spoor',
+        name: 'Trailz – trails, offline maps & wildlife',
+        short_name: 'Trailz',
         description: 'Find walking, hiking and trail-running routes, keep maps and wildlife offline, and share where you are.',
         theme_color: '#ffffff',
         background_color: '#f3eee3',

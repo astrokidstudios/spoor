@@ -1,4 +1,4 @@
-# Spoor
+# Trailz
 
 Find walking, hiking and trail-running routes near you, save maps and wildlife for places with no signal, and share where you are as a what3words address with someone you trust.
 
@@ -17,14 +17,14 @@ Live: https://astrokidstudios.github.io/spoor/
 
 | What | Why | Where |
 | --- | --- | --- |
-| what3words API key | Turns GPS into three words. Without it, sharing sends coordinates. | developer.what3words.com → Settings in Spoor |
-| Thunderforest key (optional) | Bigger, more detailed offline areas with the Outdoors map. | thunderforest.com → Settings in Spoor |
+| what3words API key | Turns GPS into three words. Without it, sharing sends coordinates. | developer.what3words.com → Settings in Trailz |
+| Thunderforest key (optional) | Bigger, more detailed offline areas with the Outdoors map. | thunderforest.com → Settings in Trailz |
 
 ## How live sharing works
 
-No server of our own. Each share creates a random, unguessable topic on [ntfy.sh](https://ntfy.sh) (free, open source). The app posts each update there; the follow page (`#/follow/<topic>`) reads it. Updates are kept by ntfy for about 12 hours. You can point Spoor at your own ntfy server in Settings → Advanced.
+No server of our own. Each share creates a random, unguessable topic on [ntfy.sh](https://ntfy.sh) (free, open source). The app posts each update there; the follow page (`#/follow/<topic>`) reads it. Updates are kept by ntfy for about 12 hours. You can point Trailz at your own ntfy server in Settings → Advanced.
 
-**iPhone limit**: Apple pauses home-screen web apps when the screen locks or you switch apps, so updates only go out while Spoor is open on screen. Spoor keeps the screen awake while sharing. When you reopen it, it sends straight away. The desktop apps keep sending in the background.
+**iPhone limit**: Apple pauses home-screen web apps when the screen locks or you switch apps, so updates only go out while Trailz is open on screen. Trailz keeps the screen awake while sharing. When you reopen it, it sends straight away. The desktop apps keep sending in the background.
 
 ## Native iPhone app (background sharing)
 
@@ -43,7 +43,7 @@ With a free Apple ID the app runs for 7 days before it needs reinstalling from X
 
 ## Map tiles and fair use
 
-The default maps come from community servers (OpenTopoMap, OpenStreetMap) that ask apps not to bulk-download. Spoor keeps offline areas small with them (about 2,500 tiles, up to zoom 15) and downloads slowly. For larger areas, add a free Thunderforest key.
+The default maps come from community servers (OpenTopoMap, OpenStreetMap) that ask apps not to bulk-download. Trailz keeps offline areas small with them (about 2,500 tiles, up to zoom 15) and downloads slowly. For larger areas, add a free Thunderforest key.
 
 ## Develop
 

@@ -73,7 +73,7 @@ function Main() {
       <header className="top">
         <div className="brand">
           <img src="./favicon.svg" alt="" width="30" height="30" />
-          <span>spoor</span>
+          <span>trailz</span>
         </div>
         {!online && <span className="pill offline"><WifiOff size={13} strokeWidth={2.5} /> Offline</span>}
         {rec && tab !== 'record' && <button className="pill rec-pill" onClick={() => setTab('record')}>{rec.status === 'recording' ? <span className="dot" /> : <Pause size={12} strokeWidth={3} />} {fmtKm(rec.distanceKm)}</button>}

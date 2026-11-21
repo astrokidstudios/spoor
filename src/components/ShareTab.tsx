@@ -85,11 +85,11 @@ function Limits() {
   return (
     <p className="muted tiny">
       {isNative
-        ? 'Spoor keeps sharing with the screen locked or while you use other apps. Choose "Always" when it asks for location access.'
+        ? 'Trailz keeps sharing with the screen locked or while you use other apps. Choose "Always" when it asks for location access.'
         : isIOS
-        ? 'iPhone: updates only go out while Spoor is open on screen (Apple pauses web apps in the background). Spoor keeps the screen awake while sharing; turn the brightness down to save battery. If the screen locks, the next update goes out as soon as you reopen Spoor.'
-        : 'Updates go out while Spoor is open. On phones, keep it on screen; Spoor keeps the screen awake while sharing.'}
-      {' '}Updates only send when you have signal; with no signal Spoor keeps trying.
+        ? 'iPhone: updates only go out while Trailz is open on screen (Apple pauses web apps in the background). Trailz keeps the screen awake while sharing; turn the brightness down to save battery. If the screen locks, the next update goes out as soon as you reopen Trailz.'
+        : 'Updates go out while Trailz is open. On phones, keep it on screen; Trailz keeps the screen awake while sharing.'}
+      {' '}Updates only send when you have signal; with no signal Trailz keeps trying.
     </p>
   )
 }
@@ -108,7 +108,7 @@ function Sharing({ onOpenSettings }: { onOpenSettings: () => void }) {
   const last = [...pings].reverse().find((p) => p.sent)
   const latest = pings[pings.length - 1]
   const nextIn = last ? Math.max(0, Math.round((last.t + session.everyMin * 60000 - Date.now()) / 60000)) : 0
-  const text = `Hi, it's ${settings.myName || 'me'}. I'm sharing my live location with you on Spoor while I'm out hiking. It updates every ${session.everyMin} minutes: ${link}`
+  const text = `Hi, it's ${settings.myName || 'me'}. I'm sharing my live location with you on Trailz while I'm out hiking. It updates every ${session.everyMin} minutes: ${link}`
   const phone = session.contactPhone.replace(/^0/, '+27').replace(/[^\d+]/g, '')
 
   async function copy() {

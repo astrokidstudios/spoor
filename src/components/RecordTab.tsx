@@ -174,7 +174,7 @@ function ActiveWalk({ walk, onFinished }: { walk: Walk; onFinished: (w: Walk) =>
       </div>
       {added && <p className="small good">{added}</p>}
       <PhotoStrip photos={photos ?? []} />
-      <p className="muted tiny">Keep Spoor open while you walk{' '}
+      <p className="muted tiny">Keep Trailz open while you walk{' '}
         {'standalone' in navigator || matchMedia('(display-mode: standalone)').matches ? '' : '(or use the iPhone app) '}
         so it keeps recording. Time doesn't count while paused.</p>
     </div>

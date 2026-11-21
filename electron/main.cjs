@@ -1,4 +1,4 @@
-// Spoor desktop shell: serves the built web app from a private app:// origin so data in
+// Trailz desktop shell: serves the built web app from a private app:// origin so data in
 // IndexedDB stays put between launches (the origin never changes), and works fully offline.
 const { app, BrowserWindow, protocol, net, shell, Menu } = require('electron')
 const path = require('node:path')
@@ -16,7 +16,7 @@ function createWindow() {
     height: 880,
     minWidth: 380,
     minHeight: 560,
-    title: 'Spoor',
+    title: 'Trailz',
     backgroundColor: '#f3eee3',
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
     autoHideMenuBar: true,
