@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0e1311" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -13,6 +13,13 @@
     <meta name="apple-mobile-web-app-title" content="Trailz" />
     <meta name="description" content="Find walking, hiking and trail-running routes, keep maps and wildlife offline, and share where you are." />
     <title>Trailz</title>
+    <style>html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }</style>
+    <script>
+      // The app UI shouldn't zoom like a web page. Maps still pinch-zoom (Leaflet handles those touches itself).
+      document.addEventListener('gesturestart', function (e) {
+        if (!(e.target instanceof Element && e.target.closest('.leaflet-container'))) e.preventDefault()
+      }, { passive: false })
+    </script>
   </head>
   <body>
     <div id="root"></div>
