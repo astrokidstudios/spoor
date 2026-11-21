@@ -13,7 +13,8 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.6.2"),
         .package(name: "CapacitorCommunityBackgroundGeolocation", path: "../../../node_modules/@capacitor-community/background-geolocation"),
-        .package(name: "CapacitorCommunityContacts", path: "../../../node_modules/@capacitor-community/contacts")
+        .package(name: "CapacitorCommunityContacts", path: "../../../node_modules/@capacitor-community/contacts"),
+        .package(name: "CapacitorDevice", path: "../../../node_modules/@capacitor/device")
     ],
     targets: [
         .target(
@@ -22,7 +23,8 @@ let package = Package(
                 .product(name: "Capacitor", package: "capacitor-swift-pm"),
                 .product(name: "Cordova", package: "capacitor-swift-pm"),
                 .product(name: "CapacitorCommunityBackgroundGeolocation", package: "CapacitorCommunityBackgroundGeolocation"),
-                .product(name: "CapacitorCommunityContacts", package: "CapacitorCommunityContacts")
+                .product(name: "CapacitorCommunityContacts", package: "CapacitorCommunityContacts"),
+                .product(name: "CapacitorDevice", package: "CapacitorDevice")
             ]
         )
     ]
