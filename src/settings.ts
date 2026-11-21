@@ -10,6 +10,8 @@ export interface Settings {
   weightKg: number
   /** Show finished walks (a summary, no route) to people who follow you. */
   shareWalks: boolean
+  /** When you start a walk on a trail, followers see it under Live now and can join. */
+  liveToFollowers: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -21,6 +23,7 @@ const DEFAULTS: Settings = {
   shareEveryMin: 5,
   weightKg: 75,
   shareWalks: true,
+  liveToFollowers: true,
 }
 
 const KEY = 'spoor.settings'

@@ -242,7 +242,7 @@ export function useNewFollowers() {
       followers().then((f) => {
         if (!alive) return
         const seen = followersSeenAt()
-        setList(f.filter((x) => !seen || x.followed_at > seen))
+        setList(f.filter((x) => !seen || Date.parse(x.followed_at) > Date.parse(seen)))
       }).catch(() => {})
     }
     load()

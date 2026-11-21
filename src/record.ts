@@ -5,7 +5,7 @@ import { setMap } from './mapbus'
 import { shapeOf } from './trails'
 import { getSettings } from './settings'
 import { BG, isNative } from './share'
-import { endGroup, reportPosition } from './group'
+import { endGroup, goLiveForFollowers, reportPosition } from './group'
 import { shareFinishedWalk, unshareWalk } from './cloud'
 
 /** Recording walks: GPS track, time (pauses not counted), distance, climb, calories, photos and progress along a trail. */
@@ -225,6 +225,7 @@ export async function startWalk(opts: { activity: Activity; trail?: Trail | null
   await loadTrail(w)
   set({ progress: progressFor(w) })
   startGps()
+  if (t) void goLiveForFollowers(t).catch(() => {})
   return w
 }
 
@@ -283,6 +284,9 @@ export async function resumeRecording() {
   const last = w.points[w.points.length - 1]
   set({ progress: progressFor(w, last ? [last.lat, last.lng] : undefined) })
   if (w.status === 'recording') startGps()
+  // A walk started before followers could see it: put it live now (only if it's on a trail and not already in a group).
+  const t = w.trailId ? await db.trails.get(w.trailId) : undefined
+  if (t && w.status === 'recording') setTimeout(() => void goLiveForFollowers(t).catch(() => {}), 2500)
 }
 
 export async function deleteWalk(id: string) {

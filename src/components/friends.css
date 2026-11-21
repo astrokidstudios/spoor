@@ -44,3 +44,4 @@ button.live-ico { border: 0; }
 .walk-ico { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--brand) 14%, var(--surface)); color: var(--brand); flex: none; }
 .walk-nums { display: grid; text-align: right; flex: none; }
 .profile-head .grow { flex: 1; min-width: 0; }
+.live-note { display: flex; align-items: center; gap: 7px; margin: 0; color: var(--muted); } .live-note .dot { width: 8px; height: 8px; border-radius: 50%; background: #e5484d; flex: none; animation: pulse 1.6s ease-in-out infinite; }

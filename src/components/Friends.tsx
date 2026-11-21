@@ -98,9 +98,17 @@ function ProfileSheet({ onClose }: { onClose: () => void }) {
   const { profile, session } = useAccount()
   const [name, setName] = useState(profile?.display_name ?? '')
   const [followers, setFollowers] = useState<number | null>(null)
+  const fresh = useNewFollowers()
+  const [shown, setShown] = useState<Follower[]>([]) // keep showing who followed you while the sheet is open
+  const [person, setPerson] = useState<string | null>(null)
   useEffect(() => { followerCount().then(setFollowers) }, [])
+  // Opening your account counts as seeing your new followers, so the red badge clears.
+  useEffect(() => { if (fresh.length) { setShown(fresh); markFollowersSeen() } }, [fresh]) // eslint-disable-line react-hooks/exhaustive-deps
+  const list = shown
   return (
     <Sheet label="Your account" onClose={() => { if (name !== profile?.display_name) void updateDisplayName(name); onClose() }}>
+      {list.length > 0 && <NewFollowers list={list} onOpen={setPerson} />}
+      {person && <PersonSheet userId={person} onClose={() => setPerson(null)} />}
       <div className="profile-head">
         <span className="me-dot big">{initials(name || profile?.username || '?')}</span>
         <div>
@@ -250,6 +258,10 @@ export function FriendsCard() {
           ? <ul className="people">{shown.map((p) => <PersonRow key={p.id} p={p} on={followingIds.has(p.id)} onToggle={() => void toggle(p)} onOpen={() => setOpen(p.id)} back={view === 'followers'} />)}</ul>
           : <p className="muted small">{view === 'following' ? 'Not following anyone yet. Search for a friend’s username above.' : 'No followers yet. Tell friends your username: @' + (profile?.username ?? '')}</p>}
       </>}
+      <label className="toggle-row small">
+        <input type="checkbox" checked={settings.liveToFollowers} onChange={(e) => setSettings({ liveToFollowers: e.target.checked })} />
+        <span>When I start a walk on a trail, followers see it live and can join</span>
+      </label>
       <label className="toggle-row small">
         <input type="checkbox" checked={settings.shareWalks} onChange={(e) => setSettings({ shareWalks: e.target.checked })} />
         <span>Show my finished walks to followers <span className="muted">(distance, time and trail; never your route or start point)</span></span>

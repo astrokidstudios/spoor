@@ -3,7 +3,7 @@ import { db, type LatLng, type Trail, type TrailKind } from './db'
 import { bboxOf, lineKm } from './geo'
 import { setMap } from './mapbus'
 import { getSettings, PUBLIC_URL, readJSON, writeJSON } from './settings'
-import { endMyHike } from './cloud'
+import { announceHike, endMyHike, myId } from './cloud'
 
 /**
  * Group walks: everyone on one walk follows the same trail and sees each other's position and progress.
@@ -127,6 +127,16 @@ export function startGroup(t: Trail): GroupSession {
   set({ session: s, members: [], error: '' })
   startPolling()
   return s
+}
+
+/**
+ * Starting a walk on a trail while signed in: open a group for it straight away and list it under
+ * "Live now" for followers, so they can see you're out and join. Skipped if you joined someone else's walk.
+ */
+export async function goLiveForFollowers(t: Trail) {
+  if (!myId() || !getSettings().liveToFollowers || state.session) return
+  const s = startGroup(t)
+  await announceHike(s.topic, inviteLink(s, t), t.name)
 }
 
 export async function joinGroup(inv: Invite): Promise<Trail> {
