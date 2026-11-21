@@ -13,7 +13,6 @@
     <meta name="apple-mobile-web-app-title" content="Trailz" />
     <meta name="description" content="Find walking, hiking and trail-running routes, keep maps and wildlife offline, and share where you are." />
     <title>Trailz</title>
-<<<<<<< Updated upstream
     <style>html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }</style>
     <script>
       // The app UI shouldn't zoom like a web page. Maps still pinch-zoom (Leaflet handles those touches itself).
@@ -21,11 +20,6 @@
         if (!(e.target instanceof Element && e.target.closest('.leaflet-container'))) e.preventDefault()
       }, { passive: false })
     </script>
-=======
-    <!-- The app UI doesn't zoom (pinch or double-tap); maps still zoom with their own gestures. -->
-    <style>html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; }</style>
-    <script>document.addEventListener('gesturestart', function (e) { if (!(e.target && e.target.closest && e.target.closest('.leaflet-container'))) e.preventDefault() }, { passive: false })</script>
->>>>>>> Stashed changes
   </head>
   <body>
     <div id="root"></div>
