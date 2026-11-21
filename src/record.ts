@@ -6,6 +6,7 @@ import { shapeOf } from './trails'
 import { getSettings } from './settings'
 import { BG, isNative } from './share'
 import { endGroup, reportPosition } from './group'
+import { shareFinishedWalk, unshareWalk } from './cloud'
 
 /** Recording walks: GPS track, time (pauses not counted), distance, climb, calories, photos and progress along a trail. */
 
@@ -266,6 +267,7 @@ export async function finishWalk() {
   reportStatus(done, 'done')
   endGroup()
   await db.walks.put(done)
+  void shareFinishedWalk(done)
   set({ walk: null, progress: null, gpsError: '' })
   return done
 }
@@ -284,6 +286,7 @@ export async function resumeRecording() {
 }
 
 export async function deleteWalk(id: string) {
+  void unshareWalk(id)
   await db.transaction('rw', db.walks, db.photos, async () => {
     await db.photos.where('walkId').equals(id).delete()
     await db.walks.delete(id)

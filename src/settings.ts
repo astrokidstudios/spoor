@@ -8,6 +8,8 @@ export interface Settings {
   ntfyServer: string
   shareEveryMin: number
   weightKg: number
+  /** Show finished walks (a summary, no route) to people who follow you. */
+  shareWalks: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -18,6 +20,7 @@ const DEFAULTS: Settings = {
   ntfyServer: 'https://ntfy.sh',
   shareEveryMin: 5,
   weightKg: 75,
+  shareWalks: true,
 }
 
 const KEY = 'spoor.settings'

@@ -185,6 +185,7 @@ function startWatching() {
   channel = supabase.channel('trailz-live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hikes' }, changed)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hike_invites' }, changed)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'follows' }, changed)
     .subscribe()
   poll = window.setInterval(changed, 60000)
   changed()
@@ -214,4 +215,85 @@ export function useLiveHikes() {
 export function openJoinLink(url: string) {
   const i = url.indexOf('#')
   location.hash = i >= 0 ? url.slice(i) : url
+}
+
+// ---------- Followers, profiles and past walks ----------
+
+export interface Follower extends Profile { followed_at: string }
+
+export async function followers(): Promise<Follower[]> {
+  const id = myId()
+  if (!id) return []
+  const { data } = await supabase.from('follows').select('created_at, profiles!follows_follower_fkey(id, username, display_name)').eq('followee', id).order('created_at', { ascending: false })
+  return ((data ?? []) as unknown as { created_at: string; profiles: Profile | null }[]).filter((r) => r.profiles).map((r) => ({ ...r.profiles!, followed_at: r.created_at }))
+}
+
+const SEEN_KEY = 'trailz.followersSeen'
+export const followersSeenAt = () => readJSON<string>(SEEN_KEY, '')
+export function markFollowersSeen() { writeJSON(SEEN_KEY, new Date().toISOString()); changed() }
+
+/** People who followed me since I last looked, kept fresh (drives the badge and the "followed you" cards). */
+export function useNewFollowers() {
+  const { session } = useAccount()
+  const [list, setList] = useState<Follower[]>([])
+  useEffect(() => {
+    let alive = true
+    const load = () => {
+      followers().then((f) => {
+        if (!alive) return
+        const seen = followersSeenAt()
+        setList(f.filter((x) => !seen || x.followed_at > seen))
+      }).catch(() => {})
+    }
+    load()
+    changeListeners.add(load)
+    return () => { alive = false; changeListeners.delete(load) }
+  }, [session?.user.id])
+  return session ? list : []
+}
+
+export interface PublicProfile extends Profile { followers: number; following: number; iFollow: boolean; followsMe: boolean }
+
+export async function getProfile(userId: string): Promise<PublicProfile | null> {
+  const me = myId()
+  const [{ data: p }, a, b, c, d] = await Promise.all([
+    supabase.from('profiles').select('id, username, display_name').eq('id', userId).maybeSingle(),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('followee', userId),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower', userId),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower', me ?? '').eq('followee', userId),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower', userId).eq('followee', me ?? ''),
+  ])
+  if (!p) return null
+  return { ...(p as Profile), followers: a.count ?? 0, following: b.count ?? 0, iFollow: (c.count ?? 0) > 0, followsMe: (d.count ?? 0) > 0 }
+}
+
+/** Their group walk happening now, if I'm allowed to see it (I follow them, or I'm invited). */
+export async function liveHikeOf(userId: string): Promise<Hike | null> {
+  const since = new Date(Date.now() - LIVE_HOURS * 3600000).toISOString()
+  const { data } = await supabase.from('hikes').select('id, host, join_url, trail_name, started_at').eq('host', userId).is('ended_at', null).gt('started_at', since).order('started_at', { ascending: false }).limit(1)
+  return (data?.[0] as Hike | undefined) ?? null
+}
+
+export interface SharedWalk { id: string; name: string; trail_name: string; activity: 'walk' | 'hike' | 'run'; distance_km: number; active_s: number; ascent_m: number; started_at: string }
+
+/** Finished walks someone has shared with followers (only a summary: no route, so home stays private). */
+export async function walksOf(userId: string): Promise<SharedWalk[]> {
+  const { data } = await supabase.from('shared_walks').select('id, name, trail_name, activity, distance_km, active_s, ascent_m, started_at').eq('user_id', userId).order('started_at', { ascending: false }).limit(30)
+  return (data ?? []) as SharedWalk[]
+}
+
+/** After finishing a walk: share its summary with followers. Quietly does nothing when signed out or offline. */
+export async function shareFinishedWalk(w: { id: string; name: string; trailName?: string; activity: 'walk' | 'hike' | 'run'; distanceKm: number; activeMs: number; ascent: number; startedAt: number; endedAt?: number }) {
+  if (!myId() || !getSettings().shareWalks) return
+  if (w.distanceKm < 0.2) return // skip accidental taps
+  await supabase.from('shared_walks').upsert({
+    id: w.id, name: w.name, trail_name: w.trailName ?? '', activity: w.activity,
+    distance_km: Math.round(w.distanceKm * 100) / 100, active_s: Math.round(w.activeMs / 1000), ascent_m: Math.round(w.ascent),
+    started_at: new Date(w.startedAt).toISOString(), ended_at: w.endedAt ? new Date(w.endedAt).toISOString() : null,
+  }).then(() => {}, () => {})
+}
+
+export async function unshareWalk(id: string) {
+  if (!myId()) return
+  await supabase.from('shared_walks').delete().eq('id', id).then(() => {}, () => {})
 }

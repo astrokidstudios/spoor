@@ -19,3 +19,28 @@
 .pad { padding: 8px 4px; }
 .group-start-wrap { display: grid; gap: 8px; }
 .icon-btn.small { width: 32px; height: 32px; }
+.account-btn { position: relative; }
+.news-badge { position: absolute; top: 2px; right: 0; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #e5484d; color: #fff; font-size: 0.68rem; font-weight: 800; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--surface); }
+.new-followers { display: grid; gap: 8px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--brand) 8%, var(--surface)); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--brand) 35%, var(--line)); }
+.gap-s { gap: 6px; }
+.follow-pill { margin-right: 8px; display: inline-flex; align-items: center; gap: 4px; color: var(--brand); }
+.live-text { border: 0; background: none; text-align: left; padding: 0; color: inherit; display: grid; }
+button.live-ico { border: 0; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg button { border: 0; background: none; border-radius: 9px; padding: 7px 8px; font-weight: 700; font-size: 0.86rem; color: var(--muted); }
+.seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.toggle-row { display: flex; gap: 10px; align-items: flex-start; }
+.toggle-row input { margin-top: 3px; accent-color: var(--brand); width: 18px; height: 18px; flex: none; }
+.link-btn { border: 0; background: none; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+.profile-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 12px; text-align: center; }
+.profile-stats div { background: var(--surface-2); border-radius: 12px; padding: 8px 4px; display: grid; }
+.profile-stats b { font-size: 1.05rem; }
+.profile-stats span { font-size: 0.72rem; color: var(--muted); }
+.section-h { margin: 16px 0 6px; font-size: 1rem; }
+.walk-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.walk-list li { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 12px; background: var(--surface-2); }
+.walk-list .grow { flex: 1; min-width: 0; }
+.walk-list b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.walk-ico { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--brand) 14%, var(--surface)); color: var(--brand); flex: none; }
+.walk-nums { display: grid; text-align: right; flex: none; }
+.profile-head .grow { flex: 1; min-width: 0; }
