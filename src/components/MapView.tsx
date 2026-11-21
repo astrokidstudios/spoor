@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import { Layers, LocateFixed } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
+import '../leaflet-global'
+import 'leaflet-rotate'
+import Compass from './Compass'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Trail } from '../db'
 import { bindMap, getMap, rememberView, savedView, setMap, useMapState } from '../mapbus'
@@ -27,12 +30,13 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
   const packs = useLiveQuery(() => db.packs.toArray(), [])
   const [styleOpen, setStyleOpen] = useState(false)
   const [locErr, setLocErr] = useState('')
+  const [leafletMap, setLeafletMap] = useState<L.Map | null>(null)
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
 
   // Create the map once.
   useEffect(() => {
-    const map = L.map(el.current!, { zoomControl: false, attributionControl: true }).setView(savedView.c, savedView.z)
+    const map = L.map(el.current!, { zoomControl: false, attributionControl: true, rotate: true, bearing: 0, touchRotate: true, shiftKeyRotate: true, rotateControl: false }).setView(savedView.c, savedView.z)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map)
     packLayer.current = L.layerGroup().addTo(map)
@@ -53,6 +57,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     map.on('dragstart', () => getMap().follow && setMap({ follow: false }))
     report()
     mapRef.current = map
+    setLeafletMap(map)
     bindMap(map)
     const ro = new ResizeObserver(() => map.invalidateSize())
     ro.observe(el.current!)
@@ -191,6 +196,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     <div className="map-wrap">
       <div ref={el} className="map" />
       <div className="map-tools">
+        <Compass map={leafletMap} />
         <button className={`map-btn ${follow ? 'on' : ''}`} title="Show my location" aria-label="Show my location" onClick={locate}>
           <LocateFixed size={20} strokeWidth={2.2} />
         </button>

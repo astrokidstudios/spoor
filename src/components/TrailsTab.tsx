@@ -6,6 +6,7 @@ import { fitBBox, getMap, setMap, useMapState } from '../mapbus'
 import { cachedSearch, difficulty, estimateHours, SHAPE_LABEL, tripOf, fetchProfile, FRESH_MS, KIND_LABEL, offlineTrails, searchAndSave } from '../trails'
 import { KIND_COLOR } from './MapView'
 import Profile from './Profile'
+import TrailPhotos from './TrailPhotos'
 import RouteThumb from './RouteThumb'
 import SaveSheet from './SaveSheet'
 import { ArrowLeftRight, Car, ChevronLeft, CloudDownload, ExternalLink, Globe, PenLine, Play, Search, ShieldCheck, Star } from 'lucide-react'
@@ -253,6 +254,7 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
       {saveOpen && <SaveSheet trail={t} onClose={() => setSaveOpen(false)} onSaved={(n) => setT(n)} />}
       {trip.shape === 'out-back' && <p className="small muted out-back-note"><ArrowLeftRight size={15} /> Out and back: {fmtKm(t.distanceKm)} each way{t.ascent != null ? `, ${t.ascent} m up on the way out` : ''}. Times are for the full return.</p>}
       <button className="btn primary block" onClick={() => onStart(t)}><Play size={17} fill="currentColor" /> Start this trail</button>
+      <TrailPhotos trail={t} />
       {t.profile ? <Profile data={t.profile} /> : <p className="note small">{profileErr ? 'Elevation profile needs a connection.' : navigator.onLine === false ? 'Elevation profile needs a connection.' : 'Loading elevation…'}</p>}
       {desc && <p>{desc}</p>}
       {info.length > 0 && (

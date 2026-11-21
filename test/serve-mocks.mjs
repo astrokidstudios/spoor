@@ -10,6 +10,20 @@ export async function mock(ctx, { ntfy = [], offline = { value: false } } = {}) 
     if (offline.value) return route.abort('internetdisconnected')
     const cors = { 'access-control-allow-origin': '*' }
     let m
+    if (url.includes('commons.wikimedia.org/w/api.php')) {
+      // Two real views near the trail, plus a species close-up, a map, a 360° panorama and an animal photo that should be filtered out.
+      const img = (name, w = 2000, h = 1500, mime = 'image/jpeg') => ({ thumburl: `https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/${name}/1600px-${name}`, url: `https://upload.wikimedia.org/wikipedia/commons/a/aa/${name}`, descriptionurl: `https://commons.wikimedia.org/wiki/File:${name}`, width: w, height: h, mime, extmetadata: { Artist: { value: '<a href="#">Greg Hiker</a>' }, LicenseShortName: { value: 'CC BY-SA 4.0' }, ObjectName: { value: name.replace(/_/g, ' ').replace('.jpg', '') } } })
+      const pages = {
+        1: { title: 'File:Sphinx_view.jpg', coordinates: [{ lat: -29.04, lon: 29.4 }], imageinfo: [img('Sphinx_view.jpg')] },
+        2: { title: 'File:Crystal_Falls.jpg', coordinates: [{ lat: -29.03, lon: 29.39 }], imageinfo: [img('Crystal_Falls.jpg')] },
+        3: { title: 'File:Bitis atropos 12345678.jpg', imageinfo: [img('Bitis_atropos_12345678.jpg')] },
+        4: { title: 'File:Drakensberg map.png', imageinfo: [img('Drakensberg_map.png', 2000, 1500, 'image/png')] },
+        5: { title: 'File:Sphinx 360.jpg', imageinfo: [img('Sphinx_360.jpg', 8000, 4000)] },
+        6: { title: 'File:Grey Rhebok 2017.jpg', categories: [{ title: 'Category:Mammals of Drakensberg' }], imageinfo: [img('Grey_Rhebok_2017.jpg')] },
+      }
+      return route.fulfill({ json: { query: { pages } }, headers: cors })
+    }
+    if (url.includes('upload.wikimedia.org')) return route.fulfill({ body: await fx.photo('7'), contentType: 'image/jpeg', headers: cors })
     if (url.includes('brouter.de')) {
       // Fake path routing: a kinked line between the two points, so a snapped leg isn't straight.
       const [[x1, y1], [x2, y2]] = new URL(url).searchParams.get('lonlats').split('|').map((p) => p.split(',').map(Number))
