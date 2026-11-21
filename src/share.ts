@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react'
+import { Capacitor, registerPlugin } from '@capacitor/core'
+import type { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation'
 import { getSettings, PUBLIC_URL, readJSON, writeJSON } from './settings'
 
 /**
@@ -61,7 +63,17 @@ export function followLink(s: ShareSession) {
   return `${PUBLIC_URL}#/follow/${s.topic}${q ? '?' + q : ''}`
 }
 
+/** In the native iPhone/Android app, a background location watcher keeps sharing alive with the screen locked. */
+export const isNative = Capacitor.isNativePlatform()
+const BG = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation')
+let nativeWatcher: string | null = null
+let nativeFix: { t: number; lat: number; lng: number; acc: number } | null = null
+
 export function getPosition(): Promise<GeolocationPosition> {
+  if (nativeFix && Date.now() - nativeFix.t < 120000) {
+    const f = nativeFix
+    return Promise.resolve({ timestamp: f.t, coords: { latitude: f.lat, longitude: f.lng, accuracy: f.acc } } as GeolocationPosition)
+  }
   return new Promise((ok, fail) => {
     if (!('geolocation' in navigator)) return fail(new Error('Location is not available on this device.'))
     navigator.geolocation.getCurrentPosition(ok, (e) => fail(new Error(e.code === 1 ? 'Location permission is off for Spoor.' : 'Could not get a GPS fix.')), {
@@ -158,9 +170,32 @@ function tick() {
 export function resumeSharing() {
   if (!state.session || timer) return
   timer = setInterval(tick, 30000)
-  // Keeping a GPS watch running gives faster, more accurate fixes and helps the app stay active.
-  if ('geolocation' in navigator) watchId = navigator.geolocation.watchPosition(() => {}, () => {}, { enableHighAccuracy: true, maximumAge: 60000 })
-  void keepAwake()
+  if (isNative) {
+    // Each location update wakes the app, even in the background, and sends when an update is due.
+    BG.addWatcher(
+      {
+        backgroundTitle: 'Spoor is sharing your location',
+        backgroundMessage: `Sending your location to ${state.session.contactName} every ${state.session.everyMin} minutes.`,
+        requestPermissions: true,
+        stale: false,
+        distanceFilter: 5,
+      },
+      (loc, err) => {
+        if (err) {
+          if (err.code === 'NOT_AUTHORIZED') set({ lastError: 'Allow Spoor to use your location "Always" in Settings so it can share with the screen locked.' })
+          return
+        }
+        if (loc) {
+          nativeFix = { t: loc.time ?? Date.now(), lat: loc.latitude, lng: loc.longitude, acc: loc.accuracy }
+          tick()
+        }
+      },
+    ).then((id) => { nativeWatcher = id }).catch(() => {})
+  } else {
+    // Keeping a GPS watch running gives faster, more accurate fixes and helps the app stay active.
+    if ('geolocation' in navigator) watchId = navigator.geolocation.watchPosition(() => {}, () => {}, { enableHighAccuracy: true, maximumAge: 60000 })
+    void keepAwake()
+  }
   tick()
 }
 
@@ -177,6 +212,9 @@ export async function stopSharing() {
   timer = null
   if (watchId != null) navigator.geolocation.clearWatch(watchId)
   watchId = null
+  if (nativeWatcher) await BG.removeWatcher({ id: nativeWatcher }).catch(() => {})
+  nativeWatcher = null
+  nativeFix = null
   await lock?.release().catch(() => {})
   lock = null
   if (s) {

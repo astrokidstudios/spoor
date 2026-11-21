@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, uid } from '../db'
-import { followLink, sendNow, startSharing, stopSharing, useShare } from '../share'
+import { followLink, isNative, sendNow, startSharing, stopSharing, useShare } from '../share'
 import { setSettings, useSettings } from '../settings'
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
@@ -87,7 +87,9 @@ export default function ShareTab({ onOpenSettings }: { onOpenSettings: () => voi
 function Limits() {
   return (
     <p className="muted tiny">
-      {isIOS
+      {isNative
+        ? 'Spoor keeps sharing with the screen locked or while you use other apps. Choose "Always" when it asks for location access.'
+        : isIOS
         ? 'iPhone: updates only go out while Spoor is open on screen (Apple pauses web apps in the background). Spoor keeps the screen awake while sharing; turn the brightness down to save battery. If the screen locks, the next update goes out as soon as you reopen Spoor.'
         : 'Updates go out while Spoor is open. On phones, keep it on screen; Spoor keeps the screen awake while sharing.'}
       {' '}Updates only send when you have signal; with no signal Spoor keeps trying.

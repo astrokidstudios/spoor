@@ -1,0 +1,24 @@
+name: Check native iPhone app builds
+
+# Compiles the iPhone app for the simulator (no signing) so we know Xcode will build it on the MacBook.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync ios
+      - run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO 2>&1 | tail -40; exit ${PIPESTATUS[0]}
+        shell: bash
+        env:
+          NSUnbufferedIO: 'YES'

@@ -26,6 +26,21 @@ No server of our own. Each share creates a random, unguessable topic on [ntfy.sh
 
 **iPhone limit**: Apple pauses home-screen web apps when the screen locks or you switch apps, so updates only go out while Spoor is open on screen. Spoor keeps the screen awake while sharing. When you reopen it, it sends straight away. The desktop apps keep sending in the background.
 
+## Native iPhone app (background sharing)
+
+The same app also builds as a native iPhone app with Capacitor. The native app keeps sending your location with the screen locked (it asks for "Always" location access).
+
+On the MacBook (needs Xcode from the App Store):
+
+```bash
+npm install
+npm run ios          # builds, copies into ios/ and opens Xcode
+```
+
+In Xcode: select the **App** target → **Signing & Capabilities** → tick *Automatically manage signing* and pick your Apple ID team. Plug in the iPhone, choose it at the top, press ▶. The first time, on the iPhone go to Settings → General → VPN & Device Management and trust your developer profile.
+
+With a free Apple ID the app runs for 7 days before it needs reinstalling from Xcode. A paid Apple Developer account ($99/year) removes that and allows TestFlight.
+
 ## Map tiles and fair use
 
 The default maps come from community servers (OpenTopoMap, OpenStreetMap) that ask apps not to bulk-download. Spoor keeps offline areas small with them (about 2,500 tiles, up to zoom 15) and downloads slowly. For larger areas, add a free Thunderforest key.
