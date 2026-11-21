@@ -13,6 +13,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             <input className="input" value={s.myName} onChange={(e) => setSettings({ myName: e.target.value })} placeholder="Shown to people following you" />
           </label>
           <label className="field">
+            <span>Your weight (kg)</span>
+            <input className="input" type="number" inputMode="numeric" min={30} max={200} defaultValue={s.weightKg} onBlur={(e) => { const v = Math.max(30, Math.min(200, Number(e.target.value) || 75)); e.target.value = String(v); setSettings({ weightKg: v }) }} />
+            <small className="muted">Used to work out calories burnt on recorded walks. Stays on this device.</small>
+          </label>
+          <label className="field">
             <span>Send location every</span>
             <select className="input" value={s.shareEveryMin} onChange={(e) => setSettings({ shareEveryMin: Number(e.target.value) })}>
               {[2, 5, 10, 15, 30].map((m) => <option key={m} value={m}>{m} minutes</option>)}

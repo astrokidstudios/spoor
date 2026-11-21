@@ -164,12 +164,42 @@ export function difficulty(tags: Record<string, string>): Difficulty | null {
   return null
 }
 
-/** Rough moving times. Naismith's rule adds 1 hour per 600 m of climbing when we know it. */
+export type Shape = 'loop' | 'out-back'
+export const SHAPE_LABEL: Record<Shape, string> = { loop: 'Loop', 'out-back': 'Out & back' }
+
+/**
+ * Loop or out and back? Use the mapper's roundtrip tag if there is one. Otherwise look at the loose ends of the
+ * route (ends that don't join another piece): none, or two that finish within 300 m of each other, means a loop.
+ */
+export function shapeOf(t: Pick<Trail, 'lines' | 'tags'>): Shape {
+  if (t.tags.roundtrip === 'yes') return 'loop'
+  if (t.tags.roundtrip === 'no') return 'out-back'
+  const ends: LatLng[] = []
+  for (const l of t.lines) if (l.length > 1) ends.push(l[0], l[l.length - 1])
+  const JOIN_KM = 0.03
+  const loose = ends.filter((e, i) => !ends.some((o, j) => j !== i && (j >> 1) !== (i >> 1) && haversineKm(e, o) < JOIN_KM))
+  if (loose.length < 2) return 'loop'
+  let far = 0
+  for (let i = 0; i < loose.length; i++) for (let j = i + 1; j < loose.length; j++) far = Math.max(far, haversineKm(loose[i], loose[j]))
+  return far <= 0.3 ? 'loop' : 'out-back'
+}
+
+/** The whole outing: an out-and-back trail is walked twice, so the distance doubles and you climb both ways. */
+export function tripOf(t: Trail) {
+  const shape = shapeOf(t)
+  const back = shape === 'out-back'
+  const km = back ? t.distanceKm * 2 : t.distanceKm
+  const climb = back && t.ascent != null ? t.ascent + (t.descent ?? t.ascent) : t.ascent
+  return { shape, km, climb, oneWayKm: t.distanceKm }
+}
+
+/** Rough moving times for the whole outing. Naismith's rule adds 1 hour per 600 m of climbing when we know it. */
 export function estimateHours(t: Trail) {
   const d = difficulty(t.tags)
-  const climb = t.ascent ?? 0
-  const walk = t.distanceKm / (d?.speedKmh ?? 4.5) + climb / 600
-  const run = t.distanceKm / ((d?.level ?? 1) >= 3 ? 6 : 8.5) + climb / 1200
+  const trip = tripOf(t)
+  const climb = trip.climb ?? 0
+  const walk = trip.km / (d?.speedKmh ?? 4.5) + climb / 600
+  const run = trip.km / ((d?.level ?? 1) >= 3 ? 6 : 8.5) + climb / 1200
   return { walk, run }
 }
 

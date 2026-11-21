@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type BBox, type Trail, type TrailKind } from '../db'
 import { bboxCenter, fmtDuration, fmtKm, intersects, padBBox } from '../geo'
 import { fitBBox, getMap, setMap, useMapState } from '../mapbus'
-import { cachedSearch, difficulty, estimateHours, fetchProfile, FRESH_MS, KIND_LABEL, offlineTrails, saveTrails, searchAndSave } from '../trails'
+import { cachedSearch, difficulty, estimateHours, SHAPE_LABEL, tripOf, fetchProfile, FRESH_MS, KIND_LABEL, offlineTrails, saveTrails, searchAndSave } from '../trails'
 import { KIND_COLOR } from './MapView'
 import Profile from './Profile'
 
@@ -17,7 +17,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'saved', label: '★ Saved' },
 ]
 
-export default function TrailsTab({ onDownload }: { onDownload: () => void }) {
+export default function TrailsTab({ onDownload, onStart }: { onDownload: () => void; onStart: (t: Trail) => void }) {
   const { trails, selectedId, bounds } = useMapState()
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [msg, setMsg] = useState('')
@@ -113,7 +113,7 @@ export default function TrailsTab({ onDownload }: { onDownload: () => void }) {
   }, [trails, filter, bounds, starred])
 
   const selected = trails.find((t) => t.id === selectedId) ?? starred?.find((t) => t.id === selectedId)
-  if (selected) return <TrailDetail trail={selected} saved={!!savedIds?.has(selected.id)} onBack={() => setMap({ selectedId: null })} onDownload={onDownload} />
+  if (selected) return <TrailDetail trail={selected} saved={!!savedIds?.has(selected.id)} onBack={() => setMap({ selectedId: null })} onDownload={onDownload} onStart={onStart} />
 
   return (
     <div className="tab-body">
@@ -156,6 +156,7 @@ const pick = (t?: Trail) => (t ? { profile: t.profile, ascent: t.ascent, descent
 function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: () => void }) {
   const d = difficulty(t.tags)
   const est = estimateHours(t)
+  const trip = tripOf(t)
   return (
     <li>
       <button className="trail-card" onClick={onClick}>
@@ -163,7 +164,7 @@ function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: (
         <span className="grow">
           <span className="trail-name">{t.name}</span>
           <span className="trail-meta">
-            {KIND_LABEL[t.kind]} · {fmtKm(t.distanceKm)} · ~{fmtDuration(est.walk)}
+            <span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span> {fmtKm(trip.km)}{trip.shape === 'out-back' ? ' return' : ''} · ~{fmtDuration(est.walk)} · {KIND_LABEL[t.kind]}
             {d && <span className={`diff d${d.level}`}>{d.label}</span>}
           </span>
         </span>
@@ -174,7 +175,7 @@ function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: (
   )
 }
 
-function TrailDetail({ trail, saved, onBack, onDownload }: { trail: Trail; saved: boolean; onBack: () => void; onDownload: () => void }) {
+function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Trail; saved: boolean; onBack: () => void; onDownload: () => void; onStart: (t: Trail) => void }) {
   const [t, setT] = useState(trail)
   const [profileErr, setProfileErr] = useState(false)
   useEffect(() => setT(trail), [trail])
@@ -193,6 +194,7 @@ function TrailDetail({ trail, saved, onBack, onDownload }: { trail: Trail; saved
 
   const d = difficulty(t.tags)
   const est = estimateHours(t)
+  const trip = tripOf(t)
   const start = t.lines[0]?.[0] ?? bboxCenter(t.bbox)
   async function toggleStar() {
     const starred = !t.starred
@@ -218,16 +220,18 @@ function TrailDetail({ trail, saved, onBack, onDownload }: { trail: Trail; saved
       <div className="row between gap" style={{ alignItems: 'flex-start' }}>
         <div>
           <h2 className="trail-title">{t.name}</h2>
-          <p className="muted small">{KIND_LABEL[t.kind]}{d && <span className={`diff d${d.level}`}>{d.label}</span>}</p>
+          <p className="muted small"><span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span> {KIND_LABEL[t.kind]}{d && <span className={`diff d${d.level}`}>{d.label}</span>}</p>
         </div>
         <button className={`icon-btn ${t.starred ? 'on' : ''}`} onClick={toggleStar} aria-label={t.starred ? 'Unsave trail' : 'Save trail'} title={t.starred ? 'Saved' : 'Save trail'}>★</button>
       </div>
       <div className="stats">
-        <div><b>{fmtKm(t.distanceKm)}</b><span>distance</span></div>
-        <div><b>{t.ascent != null ? `${t.ascent} m` : '–'}</b><span>climb</span></div>
+        <div><b>{fmtKm(trip.km)}</b><span>{trip.shape === 'out-back' ? 'there & back' : 'loop'}</span></div>
+        <div><b>{trip.climb != null ? `${Math.round(trip.climb)} m` : '–'}</b><span>climb</span></div>
         <div><b>~{fmtDuration(est.walk)}</b><span>walking</span></div>
         <div><b>~{fmtDuration(est.run)}</b><span>running</span></div>
       </div>
+      {trip.shape === 'out-back' && <p className="small muted out-back-note">↔ Out and back: {fmtKm(t.distanceKm)} each way{t.ascent != null ? `, ${t.ascent} m up on the way out` : ''}. Times are for the full return.</p>}
+      <button className="btn primary block" onClick={() => onStart(t)}>▶ Start this trail</button>
       {t.profile ? <Profile data={t.profile} /> : <p className="note small">{profileErr ? 'Elevation profile needs a connection.' : navigator.onLine === false ? 'Elevation profile needs a connection.' : 'Loading elevation…'}</p>}
       {desc && <p>{desc}</p>}
       {info.length > 0 && (
@@ -236,7 +240,7 @@ function TrailDetail({ trail, saved, onBack, onDownload }: { trail: Trail; saved
         </dl>
       )}
       <div className="row gap wrap">
-        <button className="btn primary" onClick={() => { fitBBox(padBBox(t.bbox, 3), 14); onDownload() }}>⬇ {saved ? 'Save more of this area' : 'Save for offline'}</button>
+        <button className="btn" onClick={() => { fitBBox(padBBox(t.bbox, 3), 14); onDownload() }}>⬇ {saved ? 'Save more of this area' : 'Save for offline'}</button>
         <a className="btn" href={`https://www.google.com/maps/dir/?api=1&destination=${start[0]},${start[1]}`} target="_blank" rel="noreferrer">🚗 Drive to start</a>
         {t.tags.website && <a className="btn" href={t.tags.website} target="_blank" rel="noreferrer">Website</a>}
         <a className="btn subtle" href={`https://www.openstreetmap.org/${t.id.startsWith('r') ? 'relation/' + t.id.slice(1) : 'way/' + t.id.slice(1).split('-')[0]}`} target="_blank" rel="noreferrer">Fix on OSM</a>

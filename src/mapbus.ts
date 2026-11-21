@@ -12,13 +12,15 @@ export interface MapState {
   me: { lat: number; lng: number; acc: number } | null
   preview: BBox | null // area about to be downloaded
   follow: boolean
+  /** A recorded walk to draw: its track, photo spots and the trail being followed. */
+  track: { lines: LatLng[][]; photos: { id: string; lat: number; lng: number }[]; guide?: LatLng[][] } | null
 }
 
 const VIEW_KEY = 'spoor.view'
 // Default view: Champagne Castle / Monk's Cowl area, Central Drakensberg.
 export const savedView = readJSON<{ c: LatLng; z: number }>(VIEW_KEY, { c: [-29.035, 29.37], z: 12 })
 
-let state: MapState = { trails: [], selectedId: null, bounds: null, zoom: savedView.z, me: null, preview: null, follow: false }
+let state: MapState = { trails: [], selectedId: null, bounds: null, zoom: savedView.z, me: null, preview: null, follow: false, track: null }
 const listeners = new Set<() => void>()
 export const getMap = () => state
 export function setMap(patch: Partial<MapState>) {

@@ -78,6 +78,55 @@ export interface Search {
   trailIds: string[]
 }
 
+export interface WalkPoint {
+  t: number
+  lat: number
+  lng: number
+  alt: number | null
+  acc: number
+  /** Increases after each pause, so the track and distance don't jump across a gap. */
+  seg: number
+}
+
+export type Activity = 'walk' | 'hike' | 'run'
+
+/** A recorded walk, hike or run. */
+export interface Walk {
+  id: string
+  name: string
+  activity: Activity
+  status: 'recording' | 'paused' | 'done'
+  startedAt: number
+  endedAt?: number
+  /** Time spent recording (pauses not counted), up to resumedAt. */
+  activeMs: number
+  resumedAt?: number
+  points: WalkPoint[]
+  distanceKm: number
+  ascent: number
+  descent: number
+  calories: number
+  weightKg: number
+  /** Trail being followed, for progress along it. */
+  trailId?: string
+  trailName?: string
+  trailKm?: number
+  trailShape?: 'loop' | 'out-back'
+  /** Sample point of the followed trail nearest where you started (for the way back on an out-and-back). */
+  startIdx?: number
+  /** Which sample points of the followed trail have been passed. */
+  visited?: number[]
+}
+
+export interface Photo {
+  id: string
+  walkId: string
+  at: number
+  lat?: number
+  lng?: number
+  blob: Blob
+}
+
 export interface Contact {
   id: string
   name: string
@@ -91,6 +140,8 @@ export const db = new Dexie('spoor') as Dexie & {
   sightings: EntityTable<Sighting, 'taxonId'>
   contacts: EntityTable<Contact, 'id'>
   searches: EntityTable<Search, 'id'>
+  walks: EntityTable<Walk, 'id'>
+  photos: EntityTable<Photo, 'id'>
 }
 
 db.version(1).stores({
@@ -101,5 +152,6 @@ db.version(1).stores({
   contacts: 'id',
 })
 db.version(2).stores({ searches: 'id, at' })
+db.version(3).stores({ walks: 'id, startedAt, status', photos: 'id, walkId' })
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)

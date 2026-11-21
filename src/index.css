@@ -268,3 +268,32 @@ details summary { cursor: pointer; }
 .where .coords { margin: 0; letter-spacing: 0.01em; }
 .coords.big { font-size: 1.8rem; }
 .pluscode { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.04em; }
+
+/* ---------- Recording ---------- */
+.card { background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px; padding: 12px; display: grid; gap: 10px; }
+.section-h { margin: 6px 0 0; font-size: 1rem; }
+.walk-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.walk-icon { font-size: 1.4rem; width: 30px; text-align: center; }
+.big-start { padding: 14px; font-size: 1.05rem; }
+.follow-opt { align-items: flex-start; }
+.follow-opt input { margin-top: 3px; }
+.rec-on { color: var(--danger); font-weight: 800; }
+.rec-time { font-family: var(--head); font-size: 2.6rem; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.rec-controls { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.photo-btns .btn { padding: 9px 10px; }
+.trail-progress { display: grid; gap: 6px; }
+.bar { height: 10px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--good); border-radius: 999px; transition: width 0.4s; }
+.photo-strip { display: flex; gap: 6px; overflow-x: auto; }
+.photo-strip.big { display: grid; grid-template-columns: repeat(3, 1fr); }
+.photo-thumb { border: 0; padding: 0; background: none; border-radius: 10px; overflow: hidden; flex: 0 0 72px; height: 72px; }
+.photo-strip.big .photo-thumb { height: auto; aspect-ratio: 1; }
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-view { position: relative; display: grid; gap: 10px; justify-items: center; max-width: 100%; }
+.photo-view img { max-width: 100%; max-height: 78vh; border-radius: 14px; display: block; }
+.photo-pin { font-size: 20px; line-height: 30px; text-align: center; background: var(--surface); border-radius: 50%; box-shadow: var(--shadow); }
+img.photo-pop { width: 220px; border-radius: 8px; display: block; }
+.title-input { font-family: var(--head); font-size: 1.2rem; font-weight: 800; }
+.rec-pill { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.shape { display: inline-block; font-size: 0.72rem; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--brand); margin-right: 2px; }
+.shape.out-back { color: var(--ochre); background: color-mix(in srgb, var(--ochre) 15%, transparent); }

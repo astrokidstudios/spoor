@@ -7,13 +7,18 @@ import WildlifeTab from './components/WildlifeTab'
 import FollowView from './components/FollowView'
 import Settings from './components/Settings'
 import SosSheet from './components/SosSheet'
+import RecordTab from './components/RecordTab'
+import { fmtKm } from './geo'
+import { resumeRecording, startWalk, useRec } from './record'
+import type { Trail } from './db'
 import { setMap } from './mapbus'
 import { tidyPacks } from './packs'
 import { resumeSharing, useShare } from './share'
 
-type Tab = 'trails' | 'offline' | 'share' | 'wildlife'
+type Tab = 'trails' | 'record' | 'offline' | 'share' | 'wildlife'
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'trails', label: 'Trails', icon: 'M4 20c3-6 5-2 8-8s5-3 8-8' },
+  { id: 'record', label: 'Record', icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z' },
   { id: 'offline', label: 'Offline', icon: 'M12 3v11m0 0-4-4m4 4 4-4M5 19h14' },
   { id: 'share', label: 'Share', icon: 'M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Zm0-9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z' },
   { id: 'wildlife', label: 'Wildlife', icon: 'M7 14c-2 0-3-1.5-3-3s1-3 2.5-3S9 9.5 9 11s-.5 3-2 3Zm10 0c-1.5 0-2-1.5-2-3s1-3 2.5-3S20 9.5 20 11s-1 3-3 3ZM9.5 7C8 7 7.5 5.5 7.5 4.5S8.3 2 9.5 2 11.5 3.5 11.5 4.5 11 7 9.5 7Zm5 0C13 7 12.5 5.5 12.5 4.5S13.3 2 14.5 2s2 1.5 2 2.5S16 7 14.5 7ZM12 22c-3 0-5-1.5-5-3.5S9.5 13 12 13s5 3.5 5 5.5-2 3.5-5 3.5Z' },
@@ -45,10 +50,12 @@ function Main() {
   const [mapBig, setMapBig] = useState(false)
   const [online, setOnline] = useState(navigator.onLine)
   const sharing = !!useShare().session
+  const rec = useRec().walk
 
   useEffect(() => {
     void tidyPacks()
     resumeSharing()
+    void resumeRecording()
     const on = () => setOnline(navigator.onLine)
     window.addEventListener('online', on)
     window.addEventListener('offline', on)
@@ -57,6 +64,7 @@ function Main() {
 
   const select = (id: string) => { setTab('trails'); setMap({ selectedId: id }) }
   const openSettings = () => setSettingsOpen(true)
+  const startTrail = (t: Trail) => { void startWalk({ activity: t.kind === 'running' ? 'run' : 'hike', trail: t }); setTab('record') }
 
   return (
     <div className={`app tab-${tab} ${mapBig ? 'map-big' : ''}`}>
@@ -66,6 +74,7 @@ function Main() {
           <span>Spoor</span>
         </div>
         {!online && <span className="pill offline">Offline</span>}
+        {rec && tab !== 'record' && <button className="pill rec-pill" onClick={() => setTab('record')}>{rec.status === 'recording' ? '●' : '❚❚'} {fmtKm(rec.distanceKm)}</button>}
         {sharing && <button className="pill live-pill" onClick={() => setTab('share')}>● Sharing</button>}
         <span className="spacer" />
         <button className="sos-btn" onClick={() => setSosOpen(true)} aria-label="Emergency numbers">SOS</button>
@@ -84,7 +93,8 @@ function Main() {
             ))}
           </nav>
           <div className="panel-scroll">
-            {tab === 'trails' && <TrailsTab onDownload={() => setTab('offline')} />}
+            {tab === 'trails' && <TrailsTab onDownload={() => setTab('offline')} onStart={startTrail} />}
+            {tab === 'record' && <RecordTab onOpenSettings={openSettings} />}
             {tab === 'offline' && <PacksTab onOpenSettings={openSettings} />}
             {tab === 'share' && <ShareTab onOpenSettings={openSettings} />}
             {tab === 'wildlife' && <WildlifeTab />}

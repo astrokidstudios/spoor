@@ -7,6 +7,7 @@ export interface Settings {
   mapStyle: 'topo' | 'street' | 'outdoors'
   ntfyServer: string
   shareEveryMin: number
+  weightKg: number
 }
 
 const DEFAULTS: Settings = {
@@ -16,6 +17,7 @@ const DEFAULTS: Settings = {
   mapStyle: 'topo',
   ntfyServer: 'https://ntfy.sh',
   shareEveryMin: 5,
+  weightKg: 75,
 }
 
 const KEY = 'spoor.settings'

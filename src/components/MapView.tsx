@@ -16,9 +16,10 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
   const packLayer = useRef<L.LayerGroup | null>(null)
   const meLayer = useRef<L.LayerGroup | null>(null)
   const previewLayer = useRef<L.LayerGroup | null>(null)
+  const trackLayer = useRef<L.LayerGroup | null>(null)
   const watchRef = useRef<number | null>(null)
   const settings = useSettings()
-  const { trails, selectedId, me, preview, follow } = useMapState()
+  const { trails, selectedId, me, preview, follow, track } = useMapState()
   const packs = useLiveQuery(() => db.packs.toArray(), [])
   const [styleOpen, setStyleOpen] = useState(false)
   const [locErr, setLocErr] = useState('')
@@ -33,6 +34,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     packLayer.current = L.layerGroup().addTo(map)
     trailLayer.current = L.layerGroup().addTo(map)
     previewLayer.current = L.layerGroup().addTo(map)
+    trackLayer.current = L.layerGroup().addTo(map)
     meLayer.current = L.layerGroup().addTo(map)
     const report = () => {
       const b = map.getBounds()
@@ -93,6 +95,35 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     g.clearLayers()
     if (preview) g.addLayer(L.rectangle([[preview[0], preview[1]], [preview[2], preview[3]]], { color: '#c9792b', weight: 2, fillOpacity: 0.12, interactive: false }))
   }, [preview])
+
+  // Recorded walk: the trail being followed, the track so far and photo spots.
+  useEffect(() => {
+    const g = trackLayer.current!
+    g.clearLayers()
+    if (!track) return
+    const urls: string[] = []
+    if (track.guide) {
+      g.addLayer(L.polyline(track.guide, { color: '#fff', weight: 9, opacity: 0.8, interactive: false }))
+      g.addLayer(L.polyline(track.guide, { color: '#c2410c', weight: 5, opacity: 0.8, interactive: false }))
+    }
+    g.addLayer(L.polyline(track.lines, { color: '#fff', weight: 8, opacity: 0.9, interactive: false }))
+    g.addLayer(L.polyline(track.lines, { color: '#2563eb', weight: 5, interactive: false }))
+    const first = track.lines.find((l) => l.length)?.[0]
+    if (first) g.addLayer(L.circleMarker(first, { radius: 6, color: '#fff', weight: 3, fillColor: '#16a34a', fillOpacity: 1 }).bindTooltip('Start'))
+    for (const ph of track.photos) {
+      const m = L.marker([ph.lat, ph.lng], { icon: L.divIcon({ className: 'photo-pin', html: '📷', iconSize: [30, 30] }) })
+      m.bindPopup('<div class="photo-pop">Loading…</div>', { maxWidth: 260 })
+      m.on('popupopen', async () => {
+        const p = await db.photos.get(ph.id)
+        if (!p) return
+        const u = URL.createObjectURL(p.blob)
+        urls.push(u)
+        m.setPopupContent(`<img class="photo-pop" src="${u}" alt="Photo from this walk" />`)
+      })
+      g.addLayer(m)
+    }
+    return () => urls.forEach((u) => URL.revokeObjectURL(u))
+  }, [track])
 
   // My location.
   useEffect(() => {

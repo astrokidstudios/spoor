@@ -69,7 +69,7 @@ export function followLink(s: ShareSession) {
 
 /** In the native iPhone/Android app, a background location watcher keeps sharing alive with the screen locked. */
 export const isNative = Capacitor.isNativePlatform()
-const BG = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation')
+export const BG = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation')
 let nativeWatcher: string | null = null
 let nativeFix: { t: number; lat: number; lng: number; acc: number; alt: number | null } | null = null
 
