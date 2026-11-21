@@ -3,10 +3,11 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type BBox, type Trail, type TrailKind } from '../db'
 import { bboxCenter, fmtDuration, fmtKm, intersects, padBBox } from '../geo'
 import { fitBBox, getMap, setMap, useMapState } from '../mapbus'
-import { cachedSearch, difficulty, estimateHours, SHAPE_LABEL, tripOf, fetchProfile, FRESH_MS, KIND_LABEL, offlineTrails, saveTrails, searchAndSave } from '../trails'
+import { cachedSearch, difficulty, estimateHours, SHAPE_LABEL, tripOf, fetchProfile, FRESH_MS, KIND_LABEL, offlineTrails, searchAndSave } from '../trails'
 import { KIND_COLOR } from './MapView'
 import Profile from './Profile'
 import RouteThumb from './RouteThumb'
+import SaveSheet from './SaveSheet'
 import { ArrowLeftRight, Car, ChevronLeft, CloudDownload, ExternalLink, Globe, PenLine, Play, Search, ShieldCheck, Star } from 'lucide-react'
 import PlanPanel from './PlanPanel'
 import { isMyRoute, setPlanActive, usePlan } from '../plan'
@@ -26,6 +27,8 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [msg, setMsg] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
+  const [groupFilter, setGroupFilter] = useState<string | null>(null)
+  const allGroups = useLiveQuery(() => db.groups.orderBy('createdAt').toArray(), [])
   const [searchedFor, setSearchedFor] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const abort = useRef<AbortController | null>(null)
@@ -111,10 +114,10 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
 
   const moved = searchedFor !== null && bounds && searchedFor !== JSON.stringify(bounds)
   const shown = useMemo(() => {
-    const src = filter === 'saved' ? [...(starred ?? [])] : trails
-    const inView = bounds ? src.filter((t) => intersects(t.bbox, bounds)) : src
+    const src = filter === 'saved' ? (starred ?? []).filter((t) => !groupFilter || t.groups?.includes(groupFilter)) : trails
+    const inView = bounds && filter !== 'saved' ? src.filter((t) => intersects(t.bbox, bounds)) : src
     return filter === 'all' || filter === 'saved' ? inView : inView.filter((t) => t.kind === filter)
-  }, [trails, filter, bounds, starred])
+  }, [trails, filter, bounds, starred, groupFilter])
 
   const selected = trails.find((t) => t.id === selectedId) ?? starred?.find((t) => t.id === selectedId)
   const planning = usePlan().active
@@ -142,6 +145,16 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
           </button>
         ))}
       </div>
+      {filter === 'saved' && !!allGroups?.length && (
+        <div className="chips group-chips" role="group" aria-label="Groups">
+          <button className={`chip ${!groupFilter ? 'on' : ''}`} onClick={() => setGroupFilter(null)}>All saved</button>
+          {allGroups.map((g) => (
+            <button key={g.id} className={`chip ${groupFilter === g.id ? 'on' : ''}`} onClick={() => setGroupFilter(g.id)}>
+              {g.name} <span className="chip-n">{(starred ?? []).filter((t) => t.groups?.includes(g.id)).length}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {msg && <p className={`note ${status === 'error' ? 'error' : ''}`}>{msg}</p>}
       <ul className="trail-list">
         {shown.map((t) => (
@@ -158,7 +171,7 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   )
 }
 
-const pick = (t?: Trail) => (t ? { profile: t.profile, ascent: t.ascent, descent: t.descent, starred: t.starred, packIds: t.packIds } : {})
+const pick = (t?: Trail) => (t ? { profile: t.profile, ascent: t.ascent, descent: t.descent, starred: t.starred, groups: t.groups, packIds: t.packIds } : {})
 
 function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: () => void }) {
   const d = difficulty(t.tags)
@@ -203,14 +216,11 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
   const est = estimateHours(t)
   const trip = tripOf(t)
   const start = t.lines[0]?.[0] ?? bboxCenter(t.bbox)
-  async function toggleStar() {
-    const starred = !t.starred
-    const next = { ...t, starred }
-    setT(next)
-    if (await db.trails.get(t.id)) await db.trails.update(t.id, { starred })
-    else await saveTrails([next])
-    setMap({ trails: getMap().trails.map((x) => (x.id === t.id ? next : x)) })
-  }
+  const [saveOpen, setSaveOpen] = useState(false)
+  const groupNames = useLiveQuery(async () => {
+    const all = await db.groups.toArray()
+    return all.filter((g) => t.groups?.includes(g.id)).map((g) => g.name)
+  }, [t.groups])
   const info = [
     ['Surface', t.tags.surface],
     ['Marked', t.tags.trail_visibility || t.tags.osmc_symbol ? 'Yes' : undefined],
@@ -229,7 +239,7 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
           <h2 className="trail-title">{t.name}</h2>
           <p className="muted small"><span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span> {isMyRoute(t) ? 'Your route' : KIND_LABEL[t.kind]}{d && <span className={`diff d${d.level}`}>{d.label}</span>}</p>
         </div>
-        <button className={`icon-btn ${t.starred ? 'on' : ''}`} onClick={toggleStar} aria-label={t.starred ? 'Unsave trail' : 'Save trail'} title={t.starred ? 'Saved' : 'Save trail'}><Star size={22} fill={t.starred ? 'currentColor' : 'none'} /></button>
+        <button className={`icon-btn ${t.starred ? 'on' : ''}`} onClick={() => setSaveOpen(true)} aria-label={t.starred ? 'Saved: change groups' : 'Save trail'} title={t.starred ? 'Saved' : 'Save trail'}><Star size={22} fill={t.starred ? 'currentColor' : 'none'} /></button>
       </div>
       <div className="stats">
         <div><b>{fmtKm(trip.km)}</b><span>{trip.shape === 'out-back' ? 'return' : 'loop'}</span></div>
@@ -237,6 +247,10 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
         <div><b>~{fmtDuration(est.walk)}</b><span>walking</span></div>
         <div><b>~{fmtDuration(est.run)}</b><span>running</span></div>
       </div>
+      {t.starred && groupNames && groupNames.length > 0 && (
+        <div className="chips in-groups">{groupNames.map((n) => <button key={n} className="chip small-chip" onClick={() => setSaveOpen(true)}><Star size={12} fill="currentColor" /> {n}</button>)}</div>
+      )}
+      {saveOpen && <SaveSheet trail={t} onClose={() => setSaveOpen(false)} onSaved={(n) => setT(n)} />}
       {trip.shape === 'out-back' && <p className="small muted out-back-note"><ArrowLeftRight size={15} /> Out and back: {fmtKm(t.distanceKm)} each way{t.ascent != null ? `, ${t.ascent} m up on the way out` : ''}. Times are for the full return.</p>}
       <button className="btn primary block" onClick={() => onStart(t)}><Play size={17} fill="currentColor" /> Start this trail</button>
       {t.profile ? <Profile data={t.profile} /> : <p className="note small">{profileErr ? 'Elevation profile needs a connection.' : navigator.onLine === false ? 'Elevation profile needs a connection.' : 'Loading elevation…'}</p>}

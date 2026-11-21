@@ -1,3 +1,4 @@
+import Modal from './Modal'
 import { Phone, Siren } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { myNumbers, numbersFor, placeFor, saveMyNumbers, type Num } from '../emergency'
@@ -50,9 +51,7 @@ export default function SosSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="modal-back" onClick={onClose}>
-      <div className="modal settings" role="dialog" aria-label="Emergency" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-x" onClick={onClose} aria-label="Close">×</button>
+    <Modal label="Emergency" onClose={onClose} className="settings">
         <div className="modal-body">
           <h2 className="sos-title"><Siren size={24} /> Emergency</h2>
           <p className="muted small">{place ? `Numbers for ${place.place}. Tap to call; these work without data.` : 'Finding the right numbers…'}</p>
@@ -91,7 +90,6 @@ export default function SosSheet({ onClose }: { onClose: () => void }) {
             </div>
           </details>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

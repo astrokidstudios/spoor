@@ -1,11 +1,10 @@
+import Modal from './Modal'
 import { setSettings, useSettings } from '../settings'
 
 export default function Settings({ onClose }: { onClose: () => void }) {
   const s = useSettings()
   return (
-    <div className="modal-back" onClick={onClose}>
-      <div className="modal settings" role="dialog" aria-label="Settings" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-x" onClick={onClose} aria-label="Close">×</button>
+    <Modal label="Settings" onClose={onClose} className="settings">
         <div className="modal-body">
           <h2>Settings</h2>
           <label className="field">
@@ -51,7 +50,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           </details>
           <p className="muted tiny">Trailz {__APP_VERSION__}. Map data © OpenStreetMap contributors. Wildlife from iNaturalist. Elevation from Open-Meteo.</p>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

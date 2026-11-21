@@ -276,7 +276,7 @@ export async function saveTrails(trails: Trail[], packId?: string) {
     for (const t of trails) {
       const old = await db.trails.get(t.id)
       const packIds = [...new Set([...(old?.packIds ?? []), ...(packId ? [packId] : [])])]
-      await db.trails.put({ ...t, packIds, starred: old?.starred ?? t.starred, profile: old?.profile ?? t.profile, ascent: old?.ascent ?? t.ascent, descent: old?.descent ?? t.descent })
+      await db.trails.put({ ...t, packIds, starred: old?.starred ?? t.starred, groups: old?.groups ?? t.groups, profile: old?.profile ?? t.profile, ascent: old?.ascent ?? t.ascent, descent: old?.descent ?? t.descent })
     }
   })
 }

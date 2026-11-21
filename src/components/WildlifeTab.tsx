@@ -4,6 +4,7 @@ import { db, type Species } from '../db'
 import { getMap } from '../mapbus'
 import { fetchAreaWildlife, GROUPS, groupInfo } from '../wildlife'
 import GroupIcon from './GroupIcon'
+import Modal from './Modal'
 import { Check, RefreshCw, TriangleAlert } from 'lucide-react'
 import { safetyFor } from '../safety'
 
@@ -121,7 +122,7 @@ function Photo({ r, big }: { r: Row; big?: boolean }) {
 function SafetyBox({ r }: { r: Row }) {
   const s = safetyFor(r.name, r.group, r.snake)
   return (
-    <div className={`safety ${s.danger ?? 'info'}`}>
+    <div className={`safety ${s.danger ?? 'tip'}`}>
       <b>{s.danger ? <><TriangleAlert size={15} /> {s.label}</> : 'If you see one'}</b>
       <p>{s.tip}</p>
       {s.firstAid && (
@@ -142,9 +143,7 @@ function SpeciesModal({ r, seen, onClose }: { r: Row; seen: boolean; onClose: ()
     else await db.sightings.put({ taxonId: r.taxonId, seenAt: Date.now() })
   }
   return (
-    <div className="modal-back" onClick={onClose}>
-      <div className="modal" role="dialog" aria-label={r.common} onClick={(e) => e.stopPropagation()}>
-        <button className="modal-x" onClick={onClose} aria-label="Close">×</button>
+    <Modal label={r.common} onClose={onClose} className="species-modal">
         <Photo r={r} big />
         <div className="modal-body">
           <h2>{r.common}</h2>
@@ -158,7 +157,6 @@ function SpeciesModal({ r, seen, onClose }: { r: Row; seen: boolean; onClose: ()
           </div>
           {r.photoAttribution && <p className="muted tiny">Photo: {r.photoAttribution}</p>}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

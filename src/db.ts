@@ -17,11 +17,19 @@ export interface Trail {
   /** Offline areas this trail was saved with. */
   packIds: string[]
   starred?: boolean
+  /** Your groups this saved trail is in, e.g. "Drakensberg" or "Bucket list". */
+  groups?: string[]
   /** Elevation profile: [distanceKm, metres] pairs, filled in when the trail is opened online. */
   profile?: [number, number][]
   ascent?: number
   descent?: number
   fetchedAt: number
+}
+
+export interface Group {
+  id: string
+  name: string
+  createdAt: number
 }
 
 export interface Pack {
@@ -142,6 +150,7 @@ export const db = new Dexie('spoor') as Dexie & {
   searches: EntityTable<Search, 'id'>
   walks: EntityTable<Walk, 'id'>
   photos: EntityTable<Photo, 'id'>
+  groups: EntityTable<Group, 'id'>
 }
 
 db.version(1).stores({
@@ -153,5 +162,6 @@ db.version(1).stores({
 })
 db.version(2).stores({ searches: 'id, at' })
 db.version(3).stores({ walks: 'id, startedAt, status', photos: 'id, walkId' })
+db.version(4).stores({ groups: 'id, createdAt' })
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)
