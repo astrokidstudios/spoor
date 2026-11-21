@@ -6,6 +6,7 @@ import { db, type Trail } from '../db'
 import { bindMap, getMap, rememberView, savedView, setMap, useMapState } from '../mapbus'
 import { setSettings, useSettings } from '../settings'
 import { activeSource, makeTileLayer, SOURCES } from '../tiles'
+import { addPoint, getPlan, usePlan } from '../plan'
 
 export const KIND_COLOR: Record<Trail['kind'], string> = { hiking: '#c2410c', walking: '#7c3aed', running: '#0e7490', path: '#a16207' }
 
@@ -17,6 +18,8 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
   const meLayer = useRef<L.LayerGroup | null>(null)
   const previewLayer = useRef<L.LayerGroup | null>(null)
   const trackLayer = useRef<L.LayerGroup | null>(null)
+  const planLayer = useRef<L.LayerGroup | null>(null)
+  const plan = usePlan()
   const watchRef = useRef<number | null>(null)
   const settings = useSettings()
   const { trails, selectedId, me, preview, follow, track } = useMapState()
@@ -35,6 +38,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     trailLayer.current = L.layerGroup().addTo(map)
     previewLayer.current = L.layerGroup().addTo(map)
     trackLayer.current = L.layerGroup().addTo(map)
+    planLayer.current = L.layerGroup().addTo(map)
     meLayer.current = L.layerGroup().addTo(map)
     const report = () => {
       const b = map.getBounds()
@@ -43,6 +47,8 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
       rememberView([c.lat, c.lng], map.getZoom())
     }
     map.on('moveend', report)
+    // Planning a route: each tap on the map adds a point.
+    map.on('click', (e: L.LeafletMouseEvent) => { if (getPlan().active) void addPoint([e.latlng.lat, e.latlng.lng]) })
     map.on('dragstart', () => getMap().follow && setMap({ follow: false }))
     report()
     mapRef.current = map
@@ -69,8 +75,10 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
       if (t.id === selectedId) continue
       const line = L.polyline(t.lines, { color: KIND_COLOR[t.kind], weight: 4, opacity: sel ? 0.35 : 0.85, dashArray: t.kind === 'path' ? '6 6' : undefined })
       line.bindTooltip(t.name, { sticky: true })
-      line.on('click', () => selectRef.current(t.id))
-      g.addLayer(L.polyline(t.lines, { color: '#000', opacity: 0, weight: 16 }).on('click', () => selectRef.current(t.id)))
+      // While planning, taps on a trail go through to the map (to add a point) instead of opening it.
+      const pick = () => { if (!getPlan().active) selectRef.current(t.id) }
+      line.on('click', pick)
+      g.addLayer(L.polyline(t.lines, { color: '#000', opacity: 0, weight: 16 }).on('click', pick))
       g.addLayer(line)
     }
     if (sel) {
@@ -124,6 +132,22 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
     }
     return () => urls.forEach((u) => URL.revokeObjectURL(u))
   }, [track])
+
+  // Route being planned: snapped parts solid, straight parts dashed, a dot per tap.
+  useEffect(() => {
+    const g = planLayer.current!
+    g.clearLayers()
+    if (!plan.active) return
+    for (const leg of plan.legs) {
+      if (!leg) continue
+      g.addLayer(L.polyline(leg.line, { color: '#fff', weight: 8, opacity: 0.9, interactive: false }))
+      g.addLayer(L.polyline(leg.line, { color: '#9333ea', weight: 5, dashArray: leg.snapped ? undefined : '8 8', interactive: false }))
+    }
+    plan.points.forEach((p, i) => {
+      const end = i === plan.points.length - 1
+      g.addLayer(L.circleMarker(p, { radius: i === 0 || end ? 7 : 5, color: '#fff', weight: 3, fillColor: i === 0 ? '#16a34a' : end ? '#9333ea' : '#6b21a8', fillOpacity: 1, interactive: false }))
+    })
+  }, [plan.active, plan.legs, plan.points])
 
   // My location.
   useEffect(() => {

@@ -12,6 +12,7 @@ import { fmtKm } from './geo'
 import { resumeRecording, startWalk, useRec } from './record'
 import type { Trail } from './db'
 import { setMap } from './mapbus'
+import { setPlanActive } from './plan'
 import { tidyPacks } from './packs'
 import { resumeSharing, useShare } from './share'
 
@@ -86,7 +87,7 @@ function Main() {
         <aside className="panel">
           <nav className="tabs" role="tablist">
             {TABS.map((t) => (
-              <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => { setTab(t.id); setMapBig(false) }}>
+              <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => { setTab(t.id); setMapBig(false); if (t.id !== 'trails') setPlanActive(false) }}>
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon} /></svg>
                 <span>{t.label}</span>
               </button>

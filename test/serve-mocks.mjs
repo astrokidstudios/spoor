@@ -10,6 +10,12 @@ export async function mock(ctx, { ntfy = [], offline = { value: false } } = {}) 
     if (offline.value) return route.abort('internetdisconnected')
     const cors = { 'access-control-allow-origin': '*' }
     let m
+    if (url.includes('brouter.de')) {
+      // Fake path routing: a kinked line between the two points, so a snapped leg isn't straight.
+      const [[x1, y1], [x2, y2]] = new URL(url).searchParams.get('lonlats').split('|').map((p) => p.split(',').map(Number))
+      const coords = [[x1, y1], [x1 + (x2 - x1) * 0.5 + 0.002, y1 + (y2 - y1) * 0.5 - 0.002], [x2, y2]]
+      return route.fulfill({ json: { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }] }, headers: cors })
+    }
     if (url.includes('overpass')) return route.fulfill({ json: fx.overpass, headers: cors })
     if (url.includes('/observations/species_counts') && url.includes('taxon_id=85553')) return route.fulfill({ json: fx.snakesWide, headers: cors })
     if (url.includes('/observations/species_counts') && url.includes('iconic_taxa=Mammalia,Reptilia')) return route.fulfill({ json: fx.animalsWide, headers: cors })

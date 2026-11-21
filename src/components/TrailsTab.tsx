@@ -6,6 +6,8 @@ import { fitBBox, getMap, setMap, useMapState } from '../mapbus'
 import { cachedSearch, difficulty, estimateHours, SHAPE_LABEL, tripOf, fetchProfile, FRESH_MS, KIND_LABEL, offlineTrails, saveTrails, searchAndSave } from '../trails'
 import { KIND_COLOR } from './MapView'
 import Profile from './Profile'
+import PlanPanel from './PlanPanel'
+import { isMyRoute, setPlanActive, usePlan } from '../plan'
 
 type Filter = 'all' | TrailKind | 'saved'
 const FILTERS: { id: Filter; label: string }[] = [
@@ -113,6 +115,8 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   }, [trails, filter, bounds, starred])
 
   const selected = trails.find((t) => t.id === selectedId) ?? starred?.find((t) => t.id === selectedId)
+  const planning = usePlan().active
+  if (planning) return <PlanPanel onSaved={() => setFilter('saved')} />
   if (selected) return <TrailDetail trail={selected} saved={!!savedIds?.has(selected.id)} onBack={() => setMap({ selectedId: null })} onDownload={onDownload} onStart={onStart} />
 
   return (
@@ -121,6 +125,7 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
         <button className={`btn primary grow ${moved ? 'pulse' : ''}`} onClick={() => search()} disabled={status === 'loading'}>
           {status === 'loading' ? <span className="spin" /> : '🔎'} {status === 'loading' ? 'Finding trails…' : moved ? 'Search this area' : 'Find trails on the map'}
         </button>
+        <button className="btn" onClick={() => { setMap({ selectedId: null }); setPlanActive(true) }} title="Draw your own route on the map">✏️ Plan</button>
       </div>
       {savedAt && status !== 'loading' && !moved && (
         <p className="tiny muted saved-at">
@@ -220,7 +225,7 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
       <div className="row between gap" style={{ alignItems: 'flex-start' }}>
         <div>
           <h2 className="trail-title">{t.name}</h2>
-          <p className="muted small"><span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span> {KIND_LABEL[t.kind]}{d && <span className={`diff d${d.level}`}>{d.label}</span>}</p>
+          <p className="muted small"><span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span> {isMyRoute(t) ? 'Your route' : KIND_LABEL[t.kind]}{d && <span className={`diff d${d.level}`}>{d.label}</span>}</p>
         </div>
         <button className={`icon-btn ${t.starred ? 'on' : ''}`} onClick={toggleStar} aria-label={t.starred ? 'Unsave trail' : 'Save trail'} title={t.starred ? 'Saved' : 'Save trail'}>★</button>
       </div>

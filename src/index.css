@@ -297,3 +297,12 @@ img.photo-pop { width: 220px; border-radius: 8px; display: block; }
 .rec-pill { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
 .shape { display: inline-block; font-size: 0.72rem; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--brand); margin-right: 2px; }
 .shape.out-back { color: var(--ochre); background: color-mix(in srgb, var(--ochre) 15%, transparent); }
+.toggle { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px 6px 6px; font-weight: 700; color: var(--muted); }
+.toggle .knob { width: 34px; height: 20px; border-radius: 999px; background: var(--surface-2); position: relative; transition: background 0.15s; }
+.toggle .knob::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.25); transition: transform 0.15s; }
+.toggle.on { color: #6b21a8; border-color: #c4b5fd; }
+.toggle.on .knob { background: #9333ea; }
+.toggle.on .knob::after { transform: translateX(14px); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: none; padding: 6px 12px; font-weight: 700; color: var(--muted); }
+.seg button.on { background: var(--brand); color: #fff; }
