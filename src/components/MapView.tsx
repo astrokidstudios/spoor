@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import MapPlace from './MapPlace'
+import MapSearch from './MapSearch'
 import { Layers, LocateFixed, Star } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
 import '../leaflet-global'
@@ -241,6 +242,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
         <button className={`map-btn ${follow ? 'on' : ''}`} title="Show my location" aria-label="Show my location" onClick={locate}>
           <LocateFixed size={20} strokeWidth={2.2} />
         </button>
+        <MapSearch />
         <button className="map-btn" title="Map style" aria-label="Map style" onClick={() => setStyleOpen((o) => !o)}>
           <Layers size={20} strokeWidth={2.2} />
         </button>

@@ -769,3 +769,18 @@ html.modal-open .panel-scroll { overflow: hidden; }
 .follow-battery { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--danger) 10%, var(--surface)); color: var(--text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 30%, transparent); }
 .follow-battery svg { color: var(--danger); flex: 0 0 auto; margin-top: 2px; }
 .follow-battery div { display: grid; gap: 2px; min-width: 0; }
+
+/* Go-to-place search on the map */
+.map-search { position: absolute; top: 0; right: 0; z-index: 1001; width: min(340px, calc(100vw - 20px)); display: grid; gap: 6px; }
+.map-search-box { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 0 4px 0 12px; height: 44px; }
+.map-search-box > svg { color: var(--brand); flex: 0 0 auto; }
+.map-search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; color: var(--text); }
+.map-search-box input::-webkit-search-cancel-button { display: none; }
+.map-search-list { list-style: none; margin: 0; padding: 4px; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-lg); max-height: 50vh; overflow-y: auto; }
+.map-search-list button { width: 100%; display: flex; gap: 10px; align-items: flex-start; text-align: left; border: 0; background: none; padding: 9px 10px; border-radius: 10px; color: var(--text); }
+.map-search-list button:active { background: var(--surface-2); }
+.map-search-list button svg { color: var(--brand); margin-top: 2px; flex: 0 0 auto; }
+.map-search-list button > span { min-width: 0; display: grid; }
+.map-search-list b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.map-search-list .tiny { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.map-search-note { padding: 10px; }

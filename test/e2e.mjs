@@ -491,6 +491,13 @@ await r.waitForSelector('.photo-strip.big img')
 await r.waitForTimeout(500)
 await snap(r, `${OUT}/13-phone-walk-detail.png`)
 
+// Go to a place from the map's own search button.
+await r.getByLabel('Search for a place on the map').click()
+await r.getByLabel('Go to a place').fill('cathkin')
+await r.waitForSelector('.map-search-list button', { timeout: 10000 })
+await snap(r, `${OUT}/14a-phone-map-search.png`)
+await r.locator('.map-search-list button').first().click()
+ok((await r.locator('.map-search').count()) === 0, 'map place search goes there and closes')
 // Search by name: trails anywhere in the country, plus places; and GPX import.
 await r.getByRole('tab', { name: /Explore/ }).click()
 await r.getByLabel('Search trails or places by name').fill('blindman')
