@@ -1,10 +1,10 @@
 import { useSyncExternalStore } from 'react'
 import type { BBox, Pack } from './db'
 import { db, uid } from './db'
-import { bboxCenter, countTiles } from './geo'
+import { bboxCenter, countTiles, intersects } from './geo'
 import { lookupPlace, rememberPlace } from './emergency'
 import { activeSource, deleteTiles, downloadTiles, SOURCES, type TileSource } from './tiles'
-import { fetchTrails, saveTrails } from './trails'
+import { cachedSearch, FRESH_MS, fetchTrails, pruneSearches, saveTrails } from './trails'
 import { saveWildlife } from './wildlife'
 
 export interface PackPlan { bbox: BBox; minZoom: number; maxZoom: number; tiles: number; mb: number; src: TileSource; tooBig: boolean }
@@ -55,7 +55,9 @@ async function runPack(pack: Pack, src: TileSource) {
     // Which country / province, so the right emergency numbers work offline here.
     lookupPlace(bboxCenter(pack.bbox), ac.signal).then((place) => { rememberPlace(place); return db.packs.update(pack.id, place) }).catch(() => {})
     try {
-      const trails = await fetchTrails(pack.bbox, ac.signal)
+      // Reuse a search from the last day if it covers this area; otherwise ask the trail servers.
+      const cached = await cachedSearch(pack.bbox, FRESH_MS)
+      const trails = cached ? cached.trails.filter((t) => intersects(t.bbox, pack.bbox)) : await fetchTrails(pack.bbox, ac.signal)
       await saveTrails(trails, pack.id)
       await db.packs.update(pack.id, { trailCount: trails.length })
     } catch (e) {
@@ -114,6 +116,7 @@ export async function deletePack(id: string) {
 
 /** Packs left as "downloading" by a closed app are really unfinished. */
 export async function tidyPacks() {
+  void pruneSearches().catch(() => {})
   const stuck = await db.packs.where('id').noneOf([...jobs.keys()]).filter((p) => p.status === 'downloading').toArray()
   for (const p of stuck) await db.packs.update(p.id, { status: 'partial', error: 'Download was interrupted. Tap Update to finish it.' })
 }

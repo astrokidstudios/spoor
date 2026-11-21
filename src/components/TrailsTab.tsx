@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type Trail, type TrailKind } from '../db'
+import { db, type BBox, type Trail, type TrailKind } from '../db'
 import { bboxCenter, fmtDuration, fmtKm, intersects, padBBox } from '../geo'
 import { fitBBox, getMap, setMap, useMapState } from '../mapbus'
-import { difficulty, estimateHours, fetchProfile, fetchTrails, KIND_LABEL, offlineTrails, saveTrails } from '../trails'
+import { cachedSearch, difficulty, estimateHours, fetchProfile, FRESH_MS, KIND_LABEL, offlineTrails, saveTrails, searchAndSave } from '../trails'
 import { KIND_COLOR } from './MapView'
 import Profile from './Profile'
 
@@ -23,41 +23,70 @@ export default function TrailsTab({ onDownload }: { onDownload: () => void }) {
   const [msg, setMsg] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [searchedFor, setSearchedFor] = useState<string | null>(null)
+  const [savedAt, setSavedAt] = useState<number | null>(null)
   const abort = useRef<AbortController | null>(null)
   const starred = useLiveQuery(() => db.trails.filter((t) => !!t.starred).toArray(), [])
   const savedIds = useLiveQuery(async () => new Set((await db.trails.toArray()).filter((t) => t.packIds.length).map((t) => t.id)), [])
 
-  async function search() {
+  async function show(list: Trail[], b: BBox) {
+    // Keep elevation data / stars we already have.
+    const known = new Map((await db.trails.bulkGet(list.map((t) => t.id))).filter(Boolean).map((t) => [t!.id, t!]))
+    list = list.map((t) => ({ ...t, ...pick(known.get(t.id)) }))
+    const keep = getMap().selectedId
+    setMap({ trails: list, selectedId: keep && list.some((t) => t.id === keep) ? keep : null })
+    setSearchedFor(JSON.stringify(b))
+    return list
+  }
+
+  /** Ask the trail servers. Quietly = in the background behind a saved copy (no spinner, no errors shown). */
+  async function fetchFresh(b: BBox, ac: AbortController, quietly: boolean) {
+    const res = await searchAndSave(b, ac.signal, quietly ? undefined : (m) => setMsg(m))
+    if (ac.signal.aborted) return
+    const list = await show(res.trails, b)
+    setSavedAt(res.at)
+    setStatus('idle')
+    setMsg(list.length ? '' : 'No mapped trails here yet. Try moving or zooming out the map.')
+  }
+
+  async function search(force = false) {
     const b = getMap().bounds
     if (!b) return
     abort.current?.abort()
     const ac = (abort.current = new AbortController())
-    setStatus('loading')
     setMsg('')
+    // 1. Searched this area in the last week? Show that straight away.
+    const cached = force ? null : await cachedSearch(b).catch(() => null)
+    if (ac.signal.aborted) return
+    if (cached) {
+      await show(cached.trails, b)
+      setSavedAt(cached.at)
+      setStatus('idle')
+      if (!cached.trails.length) setMsg('No mapped trails here yet. Try moving or zooming out the map.')
+      // Older than a day: refresh in the background while you look at the saved copy.
+      if (Date.now() - cached.at > FRESH_MS && navigator.onLine !== false) void fetchFresh(b, ac, true).catch(() => {})
+      return
+    }
+    // 2. Otherwise ask the trail servers.
+    setStatus('loading')
     try {
-      let list: Trail[]
       if (navigator.onLine === false) throw new Error('offline')
       try {
-        list = await fetchTrails(b, ac.signal, (m) => setMsg(m))
+        await fetchFresh(b, ac, false)
       } catch (e) {
-        if ((e as Error).message.startsWith('Zoom in')) throw e
-        list = await offlineTrails(b)
+        if (ac.signal.aborted || (e as Error).message.startsWith('Zoom in')) throw e
+        const list = await offlineTrails(b)
         if (!list.length) throw e
+        await show(list, b)
+        setSavedAt(null)
+        setStatus('idle')
         setMsg('No connection, so showing trails you saved offline.')
       }
-      // Keep elevation data / stars we already have.
-      const known = new Map((await db.trails.bulkGet(list.map((t) => t.id))).filter(Boolean).map((t) => [t!.id, t!]))
-      list = list.map((t) => ({ ...t, ...pick(known.get(t.id)) }))
-      setMap({ trails: list, selectedId: null })
-      setSearchedFor(JSON.stringify(b))
-      setStatus('idle')
-      if (list.length) setMsg((m) => (m.startsWith('Trail server is busy') ? '' : m))
-      if (!list.length) setMsg('No mapped trails here yet. Try moving or zooming out the map.')
     } catch (e) {
       if (ac.signal.aborted) return
       if ((e as Error).message === 'offline' || navigator.onLine === false) {
         const list = await offlineTrails(b)
         setMap({ trails: list, selectedId: null })
+        setSavedAt(null)
         setStatus('idle')
         setMsg(list.length ? 'Offline: showing trails you saved for this area.' : "You're offline and haven't saved trails for this area.")
         return
@@ -89,10 +118,16 @@ export default function TrailsTab({ onDownload }: { onDownload: () => void }) {
   return (
     <div className="tab-body">
       <div className="row gap">
-        <button className={`btn primary grow ${moved ? 'pulse' : ''}`} onClick={search} disabled={status === 'loading'}>
+        <button className={`btn primary grow ${moved ? 'pulse' : ''}`} onClick={() => search()} disabled={status === 'loading'}>
           {status === 'loading' ? <span className="spin" /> : '🔎'} {status === 'loading' ? 'Finding trails…' : moved ? 'Search this area' : 'Find trails on the map'}
         </button>
       </div>
+      {savedAt && status !== 'loading' && !moved && (
+        <p className="tiny muted saved-at">
+          Trails saved {agoText(savedAt)}, so they load instantly.{' '}
+          <button className="link-btn" onClick={() => search(true)}>Refresh</button>
+        </p>
+      )}
       <div className="chips">
         {FILTERS.map((f) => (
           <button key={f.id} className={`chip ${filter === f.id ? 'on' : ''}`} onClick={() => setFilter(f.id)}>
@@ -209,4 +244,12 @@ function TrailDetail({ trail, saved, onBack, onDownload }: { trail: Trail; saved
       {saved && <p className="note good small">✓ Map and trail saved on this device: works without signal.</p>}
     </div>
   )
+}
+
+function agoText(t: number) {
+  const m = Math.round((Date.now() - t) / 60000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m} min ago`
+  const h = Math.round(m / 60)
+  return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} day${h >= 36 ? 's' : ''} ago`
 }

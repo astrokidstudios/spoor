@@ -33,6 +33,19 @@ ok(!names.some((n) => n === 'Mountain path' && names.filter((x) => x === n).leng
 await p.waitForTimeout(800)
 await p.screenshot({ path: `${OUT}/1-phone-trails.png` })
 
+// Searching the same area again (here: opening the app again) uses the saved copy, with no trail-server request.
+const overpassCalls = () => log.filter((l) => l.includes('overpass')).length
+const firstCalls = overpassCalls()
+ok(firstCalls === 1, `first search asked the trail server once (${firstCalls})`)
+await p.reload()
+await p.waitForSelector('.trail-card', { timeout: 5000 })
+ok(overpassCalls() === firstCalls, `second search in the same area: no trail-server request (${overpassCalls()})`)
+ok((await p.locator('.trail-name').count()) === names.length, 'saved search shows the same trails')
+ok(/Trails saved just now/.test(await p.locator('.saved-at').textContent()), 'shows when the trails were saved')
+await p.locator('.saved-at .link-btn', { hasText: 'Refresh' }).click()
+await p.waitForFunction((n) => document.querySelectorAll('.trail-card').length === n, names.length, { timeout: 10000 })
+ok(overpassCalls() === firstCalls + 1, 'Refresh asks the trail server again')
+
 await p.locator('.chip', { hasText: 'Runs' }).click()
 ok((await p.locator('.trail-name').allTextContents()).join() === 'Champagne Sports Trail Run 10k', 'running filter')
 await p.locator('.chip', { hasText: 'All' }).click()
@@ -57,6 +70,7 @@ await p.screenshot({ path: `${OUT}/3-phone-downloading.png` })
 await p.waitForSelector('.pill.ready', { timeout: 120000 })
 const packMeta = await p.locator('.pack .tiny').first().textContent()
 ok(/\d+ trails · 15 species/.test(packMeta), `pack saved: ${packMeta}`)
+ok(overpassCalls() === firstCalls + 1, 'saving the area reused the saved trail search')
 await p.screenshot({ path: `${OUT}/4-phone-offline.png` })
 
 // Wildlife from the pack

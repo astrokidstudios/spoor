@@ -1,6 +1,6 @@
 import type { BBox, LatLng, Trail, TrailKind } from './db'
-import { db } from './db'
-import { bboxOf, bboxSizeKm, haversineKm, intersects, lineKm, samplePoints } from './geo'
+import { db, uid } from './db'
+import { bboxOf, bboxSizeKm, haversineKm, intersects, lineKm, padBBox, samplePoints } from './geo'
 
 const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']
 
@@ -18,7 +18,7 @@ interface OsmElement {
 
 function query(b: BBox) {
   const bb = b.map((v) => v.toFixed(5)).join(',')
-  return `[out:json][timeout:45];
+  return `[out:json][timeout:25];
 (
   relation["type"="route"]["route"~"^(hiking|foot|walking|running|fitness_trail)$"](${bb});
   way["highway"~"^(path|footway|bridleway|track)$"]["name"](${bb});
@@ -27,28 +27,55 @@ function query(b: BBox) {
 out tags geom;`
 }
 
-/** The public trail servers are often busy, so try each mirror (with a time limit), then go round once more. */
+/**
+ * The public trail servers are often busy. Ask the first mirror; if it hasn't answered within a few
+ * seconds, ask the next one too, and take whichever answers first. Go round once more if all fail.
+ */
+const HEDGE_MS = 8000
+const MIRROR_LIMIT_MS = 30000
+
 async function overpass(q: string, signal?: AbortSignal, onRetry?: (msg: string) => void) {
   let lastErr: unknown
   for (let round = 0; round < 2; round++) {
-    for (const url of OVERPASS) {
-      if (signal?.aborted) throw new Error('cancelled')
-      const ac = new AbortController()
-      const stop = () => ac.abort()
-      signal?.addEventListener('abort', stop)
-      const t = setTimeout(stop, 35000)
-      try {
-        const res = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'content-type': 'application/x-www-form-urlencoded' }, signal: ac.signal })
-        if (!res.ok) throw new Error(`Trail server busy (${res.status})`)
-        return (await res.json()) as { elements: OsmElement[] }
-      } catch (e) {
-        if (signal?.aborted) throw e
-        lastErr = e
-        onRetry?.('Trail server is busy, trying another one…')
-      } finally {
-        clearTimeout(t)
-        signal?.removeEventListener('abort', stop)
-      }
+    if (signal?.aborted) throw new Error('cancelled')
+    const controllers: AbortController[] = []
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const stopAll = () => controllers.forEach((c) => c.abort())
+    signal?.addEventListener('abort', stopAll)
+    try {
+      return await new Promise<{ elements: OsmElement[] }>((resolve, reject) => {
+        let failed = 0
+        let started = 0
+        const start = (i: number) => {
+          if (i >= OVERPASS.length || started > i || signal?.aborted) return
+          started = i + 1
+          if (i > 0) onRetry?.('Trail server is slow, asking another one too…')
+          const ac = new AbortController()
+          controllers.push(ac)
+          timers.push(setTimeout(() => ac.abort(), MIRROR_LIMIT_MS))
+          timers.push(setTimeout(() => start(i + 1), HEDGE_MS))
+          fetch(OVERPASS[i], { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'content-type': 'application/x-www-form-urlencoded' }, signal: ac.signal })
+            .then(async (res) => {
+              if (!res.ok) throw new Error(`Trail server busy (${res.status})`)
+              resolve((await res.json()) as { elements: OsmElement[] })
+            })
+            .catch((e) => {
+              lastErr = e
+              failed++
+              // A busy server answers fast with an error: move straight on to the next one.
+              start(i + 1)
+              if (failed >= OVERPASS.length || signal?.aborted) reject(e)
+            })
+        }
+        start(0)
+      })
+    } catch (e) {
+      if (signal?.aborted) throw e
+      onRetry?.('Trail servers are busy, trying again…')
+    } finally {
+      timers.forEach(clearTimeout)
+      stopAll()
+      signal?.removeEventListener('abort', stopAll)
     }
     await new Promise((r) => setTimeout(r, 2000))
   }
@@ -153,6 +180,49 @@ export async function fetchTrails(b: BBox, signal?: AbortSignal, onRetry?: (msg:
   if (w > MAX_SEARCH_KM * 1.5 || h > MAX_SEARCH_KM * 1.5) throw new Error('Zoom in a little to search for trails in this area.')
   const data = await overpass(query(b), signal, onRetry)
   return parseTrails(data.elements)
+}
+
+/** Searches stay fresh for a day, are still shown for a week, and are cleared after 30 days. */
+export const FRESH_MS = 24 * 3600e3
+export const KEEP_MS = 7 * 24 * 3600e3
+const PRUNE_MS = 30 * 24 * 3600e3
+
+const containsBox = (o: BBox, i: BBox) => i[0] >= o[0] && i[1] >= o[1] && i[2] <= o[2] && i[3] <= o[3]
+
+/** The newest earlier search that covers this whole view, if it's less than a week old. */
+export async function cachedSearch(view: BBox, maxAge = KEEP_MS) {
+  const since = Date.now() - maxAge
+  const hits = await db.searches.where('at').above(since).filter((s) => containsBox(s.bbox, view)).toArray()
+  const s = hits.sort((a, b) => b.at - a.at)[0]
+  if (!s) return null
+  const trails = (await db.trails.bulkGet(s.trailIds)).filter((t): t is Trail => !!t)
+  return { at: s.at, trails: trails.sort((a, b) => rankScore(b) - rankScore(a)) }
+}
+
+/**
+ * Search the trail servers and remember the result. The area searched is a bit bigger than the view,
+ * so small pans and zooms afterwards are answered from the saved copy.
+ */
+export async function searchAndSave(view: BBox, signal?: AbortSignal, onRetry?: (msg: string) => void) {
+  const { w, h } = bboxSizeKm(view)
+  const room = MAX_SEARCH_KM * 1.4 - Math.max(w, h)
+  const area = room > 0 ? padBBox(view, Math.min(Math.max(w, h) * 0.25, room / 2)) : view
+  const trails = await fetchTrails(area, signal, onRetry)
+  await saveTrails(trails)
+  const at = Date.now()
+  await db.searches.add({ id: uid(), bbox: area, at, trailIds: trails.map((t) => t.id) })
+  const stored = (await db.trails.bulkGet(trails.map((t) => t.id))).filter((t): t is Trail => !!t)
+  return { at, trails: stored }
+}
+
+/** Clear out old searches, and trails only kept because of them (saved and starred trails stay). */
+export async function pruneSearches() {
+  const cutoff = Date.now() - PRUNE_MS
+  await db.transaction('rw', db.searches, db.trails, async () => {
+    await db.searches.where('at').below(cutoff).delete()
+    const keep = new Set((await db.searches.toArray()).flatMap((s) => s.trailIds))
+    await db.trails.filter((t) => !t.packIds.length && !t.starred && !keep.has(t.id) && t.fetchedAt < cutoff).delete()
+  })
 }
 
 /** Trails saved offline that overlap an area. */

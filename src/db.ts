@@ -70,6 +70,14 @@ export interface Sighting {
   note?: string
 }
 
+/** A trail search we've already done, so the same area loads instantly next time. */
+export interface Search {
+  id: string
+  bbox: BBox // the (padded) area that was searched
+  at: number
+  trailIds: string[]
+}
+
 export interface Contact {
   id: string
   name: string
@@ -82,6 +90,7 @@ export const db = new Dexie('spoor') as Dexie & {
   species: EntityTable<Species, 'id'>
   sightings: EntityTable<Sighting, 'taxonId'>
   contacts: EntityTable<Contact, 'id'>
+  searches: EntityTable<Search, 'id'>
 }
 
 db.version(1).stores({
@@ -91,5 +100,6 @@ db.version(1).stores({
   sightings: 'taxonId',
   contacts: 'id',
 })
+db.version(2).stores({ searches: 'id, at' })
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)
