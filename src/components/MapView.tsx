@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
+import MapPlace from './MapPlace'
 import { Layers, LocateFixed, Star } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
 import '../leaflet-global'
@@ -218,6 +219,7 @@ export default function MapView({ onSelect }: { onSelect: (id: string) => void }
   return (
     <div className="map-wrap">
       <div ref={el} className="map" />
+      <MapPlace />
       <div className="map-tools">
         <Compass map={leafletMap} />
         <button className={`map-btn ${follow ? 'on' : ''}`} title="Show my location" aria-label="Show my location" onClick={locate}>

@@ -147,22 +147,17 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   const searchBox = (
     <form className="name-search" role="search" onSubmit={(e) => { e.preventDefault(); (document.activeElement as HTMLElement | null)?.blur() }}>
       <Search size={17} aria-hidden="true" />
-      <input type="search" enterKeyHint="search" placeholder="Search trails or places, e.g. Amphitheatre" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search trails or places by name" autoCorrect="off" />
+      <input type="search" enterKeyHint="search" placeholder="Search trails, towns or peaks" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search trails or places by name" autoCorrect="off" />
       {q && <button type="button" className="icon-btn sm" onClick={() => setQ('')} aria-label="Clear search"><X size={16} /></button>}
     </form>
   )
 
   if (q.trim()) {
     const list = found.trails
-    return (
-      <div className="tab-body">
-        {searchBox}
-        {list.length > 0 && <h3 className="section-h">Trails</h3>}
-        <ul className="trail-list">
-          {list.map((t) => <TrailCard key={t.id} t={t} saved={!!savedIds?.has(t.id)} onClick={() => openTrail(t)} />)}
-        </ul>
-        {found.busy && <p className="note small"><span className="spin" /> Searching all trails{found.trails.length ? ' for more' : ''}…</p>}
-        {found.places.length > 0 && <>
+    const nq = q.trim().toLowerCase()
+    const placeFirst = found.places.length > 0 && found.places[0].name.toLowerCase().startsWith(nq) && !list.some((t) => t.name.toLowerCase().startsWith(nq))
+    const placesBlock = (
+      found.places.length > 0 && <>
           <h3 className="section-h">Places</h3>
           <ul className="place-list">
             {found.places.map((p) => (
@@ -175,7 +170,18 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
               </li>
             ))}
           </ul>
-        </>}
+        </>
+    )
+    return (
+      <div className="tab-body">
+        {searchBox}
+        {placeFirst && placesBlock}
+        {list.length > 0 && <h3 className="section-h">Trails</h3>}
+        <ul className="trail-list">
+          {list.map((t) => <TrailCard key={t.id} t={t} saved={!!savedIds?.has(t.id)} onClick={() => openTrail(t)} />)}
+        </ul>
+        {!placeFirst && placesBlock}
+        {found.busy && <p className="note small"><span className="spin" /> Searching all trails{found.trails.length ? ' for more' : ''}…</p>}
         {!found.busy && !list.length && !found.places.length && found.done && (
           <p className="note">{found.err || `Nothing called “${q.trim()}” yet. Try fewer words, or a nearby town or peak.`}</p>
         )}
