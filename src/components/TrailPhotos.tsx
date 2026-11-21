@@ -10,6 +10,7 @@ export default function TrailPhotos({ trail }: { trail: Trail }) {
   const [photos, setPhotos] = useState<TrailPhoto[] | null>(null)
   const [err, setErr] = useState('')
   const [open, setOpen] = useState<number | null>(null)
+  const [all, setAll] = useState(false)
 
   useEffect(() => {
     const ac = new AbortController()
@@ -34,13 +35,14 @@ export default function TrailPhotos({ trail }: { trail: Trail }) {
       {photos && !photos.length && <p className="note small tp-empty"><ImageOff size={16} /> No photos shared from around this trail yet.</p>}
       {photos && photos.length > 0 && (
         <div className="tp-strip">
-          {photos.map((p, i) => (
+          {(all ? photos : photos.slice(0, 5)).map((p, i) => (
             <button key={p.id} className="tp-thumb" onClick={() => setOpen(i)} aria-label={`Open photo: ${p.title}`}>
               <img src={p.thumb} alt={p.title} loading="lazy" onError={(e) => ((e.currentTarget.parentElement as HTMLElement).style.display = 'none')} />
             </button>
           ))}
         </div>
       )}
+      {photos && photos.length > 5 && !all && <button className="btn small subtle tp-more" onClick={() => setAll(true)}>Show all {photos.length} photos</button>}
       {photos && photos.length > 0 && <p className="muted tiny">Openly licensed photos from <a href="https://commons.wikimedia.org" target="_blank" rel="noreferrer">Wikimedia Commons</a> and <a href="https://openverse.org" target="_blank" rel="noreferrer">Openverse</a> (incl. Flickr), taken near this trail or of places on it. Tap one for credit and licence.</p>}
       {open !== null && photos && <Viewer photos={photos} start={open} onClose={() => setOpen(null)} />}
     </section>

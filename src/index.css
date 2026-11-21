@@ -671,3 +671,13 @@ html.modal-open .panel-scroll { overflow: hidden; }
 .offline-prompt.card-lite { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; justify-items: start; }
 .join-offline { display: flex; gap: 10px; align-items: flex-start; }
 .join-offline input { width: auto; margin-top: 3px; }
+
+/* ===== Vertical scrolling only: nothing in the panels scrolls sideways ===== */
+.panel-scroll, .tab-body { overflow-x: hidden; }
+.tab-body > * { min-width: 0; }
+.chips { flex-wrap: wrap; overflow: visible; padding-bottom: 0; }
+.photo-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; }
+.photo-strip .photo-thumb { width: auto; height: auto; aspect-ratio: 1; }
+.stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stats.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stats b { overflow-wrap: anywhere; }
