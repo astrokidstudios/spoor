@@ -280,6 +280,16 @@ await f.goto(link.replace('https://astrokidstudios.github.io/spoor/', URL))
 await f.waitForSelector('.w3w.big', { timeout: 10000 })
 ok((await f.locator('.w3w.big').textContent()) === '///filled.count.soap', 'contact sees what3words address')
 ok((await f.locator('h1').textContent()) === 'Following Josh', 'contact sees name')
+ok((await f.locator('.follow-battery').count()) === 0, 'no battery warning while the battery is fine')
+{
+  // Josh's phone runs low: the follow page warns, with where he was last.
+  const lastMsg = ntfy.filter((x) => x.message && /Plus code/.test(x.message)).pop()
+  ntfy.push({ ...lastMsg, id: String(ntfy.length), time: Math.floor(Date.now() / 1000), title: "Josh's phone is on 9% battery", message: lastMsg.message.replace(/\nFix /, '\nBattery 9%\nFix ') })
+  await f.reload()
+  await f.waitForSelector('.follow-battery', { timeout: 10000 })
+  ok(/9% battery/.test(await f.locator('.follow-battery').textContent()) && /last position/.test(await f.locator('.follow-battery').textContent()), 'follow page warns about low battery: ' + (await f.locator('.follow-battery b').textContent()))
+  await snap(f, `${OUT}/10b-contact-low-battery.png`)
+}
 ok((await f.locator('.coords.big').textContent()) === '-29.04020, 29.39950', 'contact sees GPS coordinates')
 ok((await f.locator('.pluscode').textContent()) === '5G2FX95X+WR', 'contact sees the Plus Code')
 ok((await f.locator('.where-near').count()) === 1, 'contact sees the nearest trail: ' + (await f.locator('.where-near').textContent().catch(() => '')))

@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css'
 import { fetchUpdates, type Update } from '../share'
 import { makeTileLayer, SOURCES } from '../tiles'
 import WhereBlock from './WhereBlock'
+import { BatteryLow } from 'lucide-react'
 
 /** The page a contact opens from a share link. Works in any browser, no install. */
 export default function FollowView({ topic, name, server }: { topic: string; name: string; server?: string }) {
@@ -43,6 +44,8 @@ export default function FollowView({ topic, name, server }: { topic: string; nam
   const pts = updates.filter((u) => !u.stopped)
   const last = pts[pts.length - 1]
   const stopped = updates.length > 0 && updates[updates.length - 1].stopped
+  // The latest low-battery warning, if any came in.
+  const lowBattery = [...pts].reverse().find((u) => u.battery != null && u.battery <= 30)
 
   useEffect(() => {
     const g = layer.current
@@ -77,6 +80,15 @@ export default function FollowView({ topic, name, server }: { topic: string; nam
           <p>Loading…</p>
         ) : last ? (
           <>
+            {lowBattery && (
+              <div className="follow-battery" role="alert">
+                <BatteryLow size={20} />
+                <div>
+                  <b>{who}'s phone was on {lowBattery.battery}% battery</b>
+                  <span className="small">at {new Date(lowBattery.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. {lowBattery === last ? 'This is the last position it sent.' : 'It has sent updates since.'} If updates stop, the battery has probably run out: the position below is where they were last.</span>
+                </div>
+              </div>
+            )}
             <WhereBlock w={last} label={who} big />
             <p className={stale ? 'error' : ''}>
               {mins < 1 ? 'Updated just now' : `Updated ${mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)} h ${mins % 60} min`} ago`} · {new Date(last.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
