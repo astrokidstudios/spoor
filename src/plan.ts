@@ -40,6 +40,9 @@ export const setMagnetic = (magnetic: boolean) => set({ magnetic })
 export const setPlanMode = (mode: PlanMode) => set({ mode })
 export const clearPlan = () => set({ points: [], legs: [], note: '', outBack: false, suggestName: undefined, targetKm: undefined })
 
+/** The name and length a route rebuilt from a picture should have (shown in the plan panel). */
+export const setPlanMeta = (suggestName: string, targetKm: number | null) => set({ suggestName, targetKm })
+
 /** Lay a route through these places, one after another along real paths (and back to the start for a loop). */
 export async function planThrough(points: LatLng[], loop: boolean, name = '', targetKm: number | null = null) {
   clearPlan()

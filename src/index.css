@@ -811,3 +811,8 @@ html.modal-open .panel-scroll { overflow: hidden; }
 .import-row .link-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
 .from-photo-list li > span.grow { flex: 1 1 0; overflow: hidden; }
 .from-photo-list li > span.grow > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.from-photo-start { width: 30px; height: 30px; flex: none; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); color: var(--muted, #888); display: grid; place-items: center; padding: 0; }
+.from-photo-start.is { background: #16a34a; border-color: #16a34a; color: #fff; }
+.from-photo-foot .btn { white-space: nowrap; }
+.trace-bar { display: grid !important; gap: 8px; justify-items: start; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.leaflet-image-layer.trace-picture { mix-blend-mode: multiply; }

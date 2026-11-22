@@ -34,7 +34,7 @@ export default function MapView({ onSelect, extraTool }: { onSelect: (id: string
   const plan = usePlan()
   const watchRef = useRef<number | null>(null)
   const settings = useSettings()
-  const { trails, selectedId, me, preview, follow, track, group, pin } = useMapState()
+  const { trails, selectedId, me, preview, follow, track, group, pin, overlay } = useMapState()
   const packs = useLiveQuery(() => db.packs.toArray(), [])
   const [styleOpen, setStyleOpen] = useState(false)
   const [locErr, setLocErr] = useState('')
@@ -192,6 +192,14 @@ export default function MapView({ onSelect, extraTool }: { onSelect: (id: string
       g.addLayer(L.marker([m.lat, m.lng], { icon, zIndexOffset: 500 }).bindTooltip(`${esc(m.name)}${m.pct != null ? ` · ${m.pct}%` : ''}`, { direction: 'top', offset: [0, -14] }))
     }
   }, [group])
+
+  // A picture to trace over while planning, lined up with the map.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !overlay || !overlay.shown || !plan.active) return
+    const img = L.imageOverlay(overlay.url, overlay.corners, { opacity: 0.55, interactive: false, className: 'trace-picture' }).addTo(map)
+    return () => { img.remove() }
+  }, [overlay, plan.active])
 
   // The place you searched for: a pin with its name. Tap it to clear it.
   useEffect(() => {

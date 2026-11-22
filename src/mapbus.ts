@@ -19,6 +19,8 @@ export interface MapState {
   group?: Member[] | null
   /** The place you last searched for, shown as a pin until the next search or until you tap it. */
   pin?: { at: LatLng; name: string } | null
+  /** A picture laid over the map to trace a route over (shown while planning). */
+  overlay?: { url: string; corners: [LatLng, LatLng]; shown: boolean } | null
 }
 
 const VIEW_KEY = 'spoor.view'

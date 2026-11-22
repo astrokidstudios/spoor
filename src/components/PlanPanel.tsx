@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
 import { db, type Trail } from '../db'
 import { fmtKm } from '../geo'
-import { getMap, setMap } from '../mapbus'
+import { getMap, setMap, useMapState } from '../mapbus'
 import { clearPlan, finishRoute, planKm, planLine, planTripKm, savePlan, setMagnetic, setPlanActive, setPlanMode, undoPoint, usePlan } from '../plan'
 import { fetchProfile, shapeOf } from '../trails'
 import { ArrowLeftRight, Bike, Eraser, Footprints, Magnet, RotateCcw, Star, Undo2 } from 'lucide-react'
 
+function dropOverlay() {
+  const o = getMap().overlay
+  if (o) { URL.revokeObjectURL(o.url); setMap({ overlay: null }) }
+}
+
 /** Plot your own route: tap the map to add points; magnetic mode follows real paths. */
 export default function PlanPanel({ onSaved }: { onSaved: (t: Trail) => void }) {
   const plan = usePlan()
+  const map = useMapState()
   const [name, setName] = useState(plan.suggestName ?? '')
   const [climb, setClimb] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
@@ -35,6 +41,7 @@ export default function PlanPanel({ onSaved }: { onSaved: (t: Trail) => void }) 
         const p = await fetchProfile(t).catch(() => null)
         if (p) { Object.assign(t, p); await db.trails.update(t.id, p) }
       }
+      dropOverlay()
       clearPlan()
       setPlanActive(false)
       setMap({ trails: [t, ...getMap().trails.filter((x) => x.id !== t.id)], selectedId: t.id })
@@ -45,6 +52,7 @@ export default function PlanPanel({ onSaved }: { onSaved: (t: Trail) => void }) 
   }
 
   function close() {
+    dropOverlay()
     clearPlan()
     setPlanActive(false)
   }
@@ -78,6 +86,12 @@ export default function PlanPanel({ onSaved }: { onSaved: (t: Trail) => void }) 
         <div><b>{plan.busy ? <span className="spin" /> : shape === 'loop' ? 'Loop' : shape === 'out-back' ? (plan.outBack ? 'Out & back' : 'One way') : '–'}</b><span>shape</span></div>
       </div>
       {plan.note && <p className="note small">{plan.note}</p>}
+      {map.overlay && (
+        <div className="row gap wrap trace-bar">
+          <span className="small muted grow">{plan.points.length ? 'Now tap along the route on the picture, then Finish as a loop. Each tap snaps to the real path. Wrong start? Tap Undo and tap the start marker.' : 'Tap the start of the route on the picture (often a round marker), then tap along it. Each tap snaps to the real path.'}</span>
+          <button className="btn small" onClick={() => setMap({ overlay: { ...map.overlay!, shown: !map.overlay!.shown } })}>{map.overlay.shown ? 'Hide picture' : 'Show picture'}</button>
+        </div>
+      )}
       {plan.targetKm != null && !plan.busy && plan.points.length > 1 && (
         <p className="note small from-photo-note">
           The picture said {plan.targetKm} km; this comes to {planTripKm(plan).toFixed(1)} km.
