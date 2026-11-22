@@ -8,7 +8,7 @@ const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.p
 export const MAX_SEARCH_KM = 45
 
 interface OsmGeomPoint { lat: number; lon: number }
-interface OsmElement {
+export interface OsmElement {
   type: 'way' | 'relation' | 'node'
   id: number
   lat?: number

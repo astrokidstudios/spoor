@@ -16,7 +16,8 @@
     "desktop": "npm run build && electron .",
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
-    "ios": "npm run build && npx cap sync ios && npx cap open ios"
+    "ios": "npm run build && npx cap sync ios && npx cap open ios",
+    "trails:fast": "rolldown scripts/build-trail-index-osm.ts --format esm --platform node -o node_modules/.cache/build-trails-osm.mjs && node node_modules/.cache/build-trails-osm.mjs"
   },
   "build": {
     "appId": "app.spoor.trails",
