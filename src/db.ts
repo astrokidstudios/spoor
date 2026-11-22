@@ -161,7 +161,11 @@ export const db = new Dexie('spoor') as Dexie & {
   walks: EntityTable<Walk, 'id'>
   photos: EntityTable<Photo, 'id'>
   groups: EntityTable<Group, 'id'>
+  tiles: EntityTable<StoredTile, 'key'>
 }
+
+/** A map tile saved for offline use (the image bytes; Blobs aren't reliable in the iPhone app's storage). */
+export interface StoredTile { key: string; data: ArrayBuffer; type: string }
 
 db.version(1).stores({
   trails: 'id, *packIds',
@@ -175,5 +179,7 @@ db.version(3).stores({ walks: 'id, startedAt, status', photos: 'id, walkId' })
 db.version(4).stores({ groups: 'id, createdAt' })
 // Trail names got better (paths named after nearby places): forget earlier searches so areas are looked up again with the new names.
 db.version(5).stores({}).upgrade((tx) => tx.table('searches').clear())
+// Offline map tiles move into the database: the browser tile cache isn't dependable inside the iPhone app.
+db.version(6).stores({ tiles: 'key' })
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)

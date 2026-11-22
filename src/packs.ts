@@ -4,6 +4,7 @@ import { db, uid } from './db'
 import { bboxCenter, countTiles, intersects, padBBox } from './geo'
 import { lookupPlace, rememberPlace } from './emergency'
 import { activeSource, deleteTiles, downloadTiles, SOURCES, type TileSource } from './tiles'
+import { builtInTrails } from './trailindex'
 import { cachedSearch, FRESH_MS, fetchTrails, pruneSearches, saveTrails } from './trails'
 import { saveWildlife } from './wildlife'
 
@@ -46,18 +47,32 @@ export async function startPack(name: string, plan: PackPlan) {
   return pack.id
 }
 
+/** Keep the screen on while an area downloads (iPhone pauses the app when the screen locks). */
+type Lock = { release: () => Promise<void> }
+async function screenOn(): Promise<Lock | null> {
+  try {
+    const n = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<Lock> } }
+    return document.visibilityState === 'visible' && n.wakeLock ? await n.wakeLock.request('screen') : null
+  } catch { return null }
+}
+
 async function runPack(pack: Pack, src: TileSource) {
   const ac = new AbortController()
   controllers.set(pack.id, ac)
   const errors: string[] = []
+  let lock = await screenOn()
+  const relock = async () => { if (document.visibilityState === 'visible' && controllers.has(pack.id)) lock = await screenOn() }
+  document.addEventListener('visibilitychange', relock)
   try {
     setJob(pack.id, 'Finding trails…', 2)
     // Which country / province, so the right emergency numbers work offline here.
     lookupPlace(bboxCenter(pack.bbox), ac.signal).then((place) => { rememberPlace(place); return db.packs.update(pack.id, place) }).catch(() => {})
     try {
       // Reuse a search from the last day if it covers this area; otherwise ask the trail servers.
-      const cached = await cachedSearch(pack.bbox, FRESH_MS)
-      const trails = cached ? cached.trails.filter((t) => intersects(t.bbox, pack.bbox)) : await fetchTrails(pack.bbox, ac.signal)
+      // Inside Trailz's built-in trail map there's nothing to fetch.
+      const built = await builtInTrails(pack.bbox).catch(() => null)
+      const cached = built ? null : await cachedSearch(pack.bbox, FRESH_MS)
+      const trails = built ?? (cached ? cached.trails.filter((t) => intersects(t.bbox, pack.bbox)) : await fetchTrails(pack.bbox, ac.signal))
       await saveTrails(trails, pack.id)
       await db.packs.update(pack.id, { trailCount: trails.length })
     } catch (e) {
@@ -68,7 +83,7 @@ async function runPack(pack: Pack, src: TileSource) {
       setJob(pack.id, `Saving map… ${p.done.toLocaleString()} of ${pack.tileCount.toLocaleString()} tiles`, 5 + (p.done / pack.tileCount) * 75)
     }, ac.signal)
     await db.packs.update(pack.id, { tilesDone: res.done - res.failed, tileBytes: res.bytes })
-    if (res.failed > pack.tileCount * 0.05) errors.push(`${res.failed} map tiles`)
+    if (res.failed > pack.tileCount * 0.05) errors.push(`${res.failed.toLocaleString()} of ${pack.tileCount.toLocaleString()} map tiles (the free map server was busy)`)
     if (ac.signal.aborted) throw new Error('cancelled')
     try {
       const n = await saveWildlife(pack.id, pack.bbox, (msg) => setJob(pack.id, msg, 85), ac.signal)
@@ -78,18 +93,21 @@ async function runPack(pack: Pack, src: TileSource) {
       errors.push('wildlife')
     }
     await db.packs.update(pack.id, { status: errors.length ? 'partial' : 'ready', error: errors.length ? `Some parts didn't download: ${errors.join(', ')}. Try "Update" when you have signal.` : undefined })
-  } catch {
-    await db.packs.update(pack.id, { status: 'partial', error: 'Download stopped. Tap Update to finish it.' })
+  } catch (e) {
+    const why = (e as Error)?.message
+    await db.packs.update(pack.id, { status: 'partial', error: ac.signal.aborted ? 'Download stopped. Tap Update to finish it.' : `Download stopped${why && why !== 'cancelled' ? `: ${why}` : ''}. Tap Update to finish it.` })
   } finally {
     jobs.delete(pack.id)
     controllers.delete(pack.id)
+    document.removeEventListener('visibilitychange', relock)
+    void lock?.release().catch(() => {})
     emit()
   }
 }
 
 export async function updatePack(id: string) {
   const pack = await db.packs.get(id)
-  if (!pack || jobs.has(id)) return
+  if (!pack || jobs.has(id) || controllers.has(id)) return
   await db.packs.update(id, { status: 'downloading', error: undefined })
   const src = activeSource().id === pack.tileSource ? activeSource() : SOURCES[pack.tileSource]
   void runPack({ ...pack, status: 'downloading' }, src)
@@ -114,11 +132,14 @@ export async function deletePack(id: string) {
   })
 }
 
-/** Packs left as "downloading" by a closed app are really unfinished. */
+/** Packs left as "downloading" by a closed app are unfinished: carry on with them (saved tiles are skipped). */
 export async function tidyPacks() {
   void pruneSearches().catch(() => {})
   const stuck = await db.packs.where('id').noneOf([...jobs.keys()]).filter((p) => p.status === 'downloading').toArray()
-  for (const p of stuck) await db.packs.update(p.id, { status: 'partial', error: 'Download was interrupted. Tap Update to finish it.' })
+  for (const p of stuck) {
+    if (navigator.onLine === false) await db.packs.update(p.id, { status: 'partial', error: 'Download was interrupted. Tap Update to finish it.' })
+    else void updatePack(p.id)
+  }
 }
 
 /** Is this area already saved (or being saved) for offline use? */
