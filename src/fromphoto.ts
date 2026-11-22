@@ -58,7 +58,7 @@ export async function readText(f: Blob): Promise<TextLine[]> {
   return data.lines.map((l) => ({ text: l.text.trim(), x: l.bbox.x0 / iw, y: l.bbox.y0 / ih, w: (l.bbox.x1 - l.bbox.x0) / iw, h: (l.bbox.y1 - l.bbox.y0) / ih }))
 }
 
-export interface PictureFacts { title: string; km: number | null; climb: number | null; names: { text: string; x: number; y: number; h?: number }[] }
+export interface PictureFacts { title: string; km: number | null; climb: number | null; names: { text: string; x: number; y: number; h?: number; w?: number }[] }
 
 const UI_WORDS = /^(download|start|save|share|directions|navigate|try\b.*|map|maps|mapbox|satellite|terrain|km|mi|m|ft|reviews?|photos?|overview|details|loop|out & back|easy|moderate|hard|leaflet|openstreetmap.*|©.*)$/i
 const STAT = /\d/
@@ -79,13 +79,13 @@ export function readFacts(lines: TextLine[]): PictureFacts {
   const title = titled[0]?.text ?? ''
   const names = clean
     .filter((l) => l.text !== title && !UI_WORDS.test(l.text) && /[a-z]{3}/i.test(l.text) && !/\d{1,2}:\d{2}/.test(l.text))
-    .map((l) => ({ text: l.text.replace(/\s*\d[\d,.]*\s?m$/i, '').replace(/[^\p{L}\p{N}'’ -]/gu, '').trim(), x: l.x + l.w / 2, y: l.y + l.h / 2, h: l.h }))
+    .map((l) => ({ text: l.text.replace(/\s*\d[\d,.]*\s?m$/i, '').replace(/[^\p{L}\p{N}'’ -]/gu, '').trim(), x: l.x + l.w / 2, y: l.y + l.h / 2, h: l.h, w: l.w }))
     .filter((n) => n.text.length >= 4 && n.text.split(' ').length <= 5)
   const seen = new Set<string>()
   return { title, km, climb, names: names.filter((n) => !seen.has(n.text.toLowerCase()) && seen.add(n.text.toLowerCase())) }
 }
 
-export interface FoundPlace extends PlaceHit { label: string; px: number; py: number; ph?: number; on: boolean }
+export interface FoundPlace extends PlaceHit { label: string; px: number; py: number; ph?: number; pw?: number; on: boolean }
 
 /** Find the named places near you (or the map). Places far from the rest are dropped (same name elsewhere). */
 export async function findPlaces(facts: PictureFacts, near: LatLng, signal?: AbortSignal): Promise<FoundPlace[]> {
@@ -94,7 +94,7 @@ export async function findPlaces(facts: PictureFacts, near: LatLng, signal?: Abo
     if (signal?.aborted) break
     const hits = await placesNamed(n.text, near, signal).catch(() => [] as PlaceHit[])
     const h = hits.find((p) => haversineKm(p.at, near) < 150)
-    if (h && !out.some((o) => o.id === h.id)) out.push({ ...h, label: n.text, px: n.x, py: n.y, ph: n.h, on: true })
+    if (h && !out.some((o) => o.id === h.id)) out.push({ ...h, label: n.text, px: n.x, py: n.y, ph: n.h, pw: n.w, on: true })
   }
   if (out.length > 2) {
     // Keep the cluster: drop places much further from the middle than the rest.
@@ -125,14 +125,16 @@ const merc = ([lat, lng]: LatLng) => [R * (lng * Math.PI / 180), R * Math.log(Ma
 const unmerc = (x: number, y: number): LatLng => [(2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * 180 / Math.PI, (x / R) * 180 / Math.PI]
 
 /** Where a label's place really is in the picture: the icon or dot sits just above the name. */
-const anchor = (p: FoundPlace, w: number, h: number) => [p.px * w, (p.py - (p.ph ?? 0.012) * 1.1) * h]
+const anchor = (p: FoundPlace, w: number, h: number) => [p.px * w, (p.py - (p.ph ?? 0.012) * 1.8) * h]
 
 /**
  * Line the picture up with the map from the places found on it (screenshots of maps are north-up,
  * so: one scale and a shift). Returns the picture's corners on the map, or null if it doesn't fit.
  */
 export function fitPicture(places: FoundPlace[], w: number, h: number): [LatLng, LatLng] | null {
-  let pts = places.map((p) => ({ pix: anchor(p, w, h), geo: merc(p.at) }))
+  // Names cut off at the picture's edge have the wrong middle: leave them out of the lining up.
+  const usable = places.filter((p) => p.pw == null || (p.px - p.pw / 2 > 0.03 && p.px + p.pw / 2 < 0.97))
+  let pts = (usable.length >= 2 ? usable : places).map((p) => ({ pix: anchor(p, w, h), geo: merc(p.at) }))
   const solve = (ps: typeof pts) => {
     const n = ps.length
     const mpx = ps.reduce((s, p) => s + p.pix[0], 0) / n, mpy = ps.reduce((s, p) => s + p.pix[1], 0) / n
