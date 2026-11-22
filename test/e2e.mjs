@@ -92,6 +92,7 @@ await p.waitForSelector('.trail-card', { timeout: 15000 })
 const names = await p.locator('.trail-name').allTextContents()
 ok(names.length >= 5, `found ${names.length} trails: ${names.join(' | ')}`)
 ok(!names.some((n) => n === 'Mountain path' && names.filter((x) => x === n).length > 1), 'no duplicate unnamed paths')
+ok(names.includes("Path to Monk's Cowl") && !names.some((n) => /^(Moderate|Hard|Very hard|Easy|Mountain) path$/.test(n)), 'unnamed path named after the peak it leads to')
 await p.waitForTimeout(800)
 await snap(p, `${OUT}/1-phone-trails.png`)
 

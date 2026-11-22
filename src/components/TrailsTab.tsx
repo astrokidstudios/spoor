@@ -329,6 +329,7 @@ function TrailDetail({ trail, saved, onBack, onDownload, onStart }: { trail: Tra
             {d && <span className={`diff d${d.level}`}>{d.label}</span>}
             <span className="kind-tag">{isMyRoute(t) ? 'Your route' : t.tags.source === 'gpx' ? 'Imported GPX' : KIND_LABEL[t.kind]}</span>
           </div>
+          {t.tags['trailz:named'] === 'guessed' && <p className="muted tiny guessed-name">No name on the map, so it's named after where it goes.</p>}
         </div>
         <button className={`icon-btn ${t.starred ? 'on' : ''}`} onClick={() => setSaveOpen(true)} aria-label={t.starred ? 'Saved: change groups' : 'Save trail'} title={t.starred ? 'Saved' : 'Save trail'}><Star size={22} fill={t.starred ? 'currentColor' : 'none'} /></button>
       </div>

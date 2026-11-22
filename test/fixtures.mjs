@@ -20,6 +20,8 @@ export const overpass = {
       members: [{ type: 'way', role: '', geometry: pts([-29.0600, 29.4200], wiggle(70, 0.0003, 0.0011)) }] },
     { type: 'way', id: 7001, tags: { highway: 'path', name: 'Hlathikhulu Forest Path', sac_scale: 'hiking' }, geometry: pts([-29.030, 29.395], wiggle(20, 0.0004, 0.0005)) },
     { type: 'way', id: 7002, tags: { highway: 'path', sac_scale: 'demanding_mountain_hiking' }, geometry: pts([-29.020, 29.360], wiggle(40, -0.0006, -0.0006)) },
+    { type: 'node', id: 8001, lat: -29.0437, lon: 29.3378, tags: { natural: 'peak', name: "Monk's Cowl", ele: '3234' } },
+    { type: 'node', id: 8002, lat: -29.1, lon: 29.5, tags: { tourism: 'viewpoint' } },
   ],
 }
 

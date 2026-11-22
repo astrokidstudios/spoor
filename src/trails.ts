@@ -11,6 +11,8 @@ interface OsmGeomPoint { lat: number; lon: number }
 interface OsmElement {
   type: 'way' | 'relation' | 'node'
   id: number
+  lat?: number
+  lon?: number
   tags?: Record<string, string>
   geometry?: OsmGeomPoint[]
   members?: { type: string; role: string; geometry?: OsmGeomPoint[] }[]
@@ -23,6 +25,12 @@ function query(b: BBox) {
   relation["type"="route"]["route"~"^(hiking|foot|walking|running|fitness_trail)$"](${bb});
   way["highway"~"^(path|footway|bridleway|track)$"]["name"](${bb});
   way["highway"~"^(path|footway|track)$"]["sac_scale"](${bb});
+  node["natural"~"^(peak|waterfall|cave_entrance|saddle|spring|rock)$"]["name"](${bb});
+  node["waterway"="waterfall"]["name"](${bb});
+  node["tourism"~"^(alpine_hut|wilderness_hut|viewpoint|camp_site|picnic_site)$"]["name"](${bb});
+  node["amenity"="shelter"]["name"](${bb});
+  node["highway"="trailhead"]["name"](${bb});
+  node["mountain_pass"="yes"]["name"](${bb});
 );
 out tags geom;`
 }
@@ -107,32 +115,77 @@ export function parseTrails(elements: OsmElement[]): Trail[] {
     const distanceKm = tags.distance && !isNaN(parseFloat(tags.distance)) ? parseFloat(tags.distance) : lines.reduce((s, l) => s + lineKm(l), 0)
     out.push({ id: `r${el.id}`, name, kind: kindOf(tags), distanceKm, lines, bbox: bboxOf(lines), tags, packIds: [], fetchedAt: now })
   }
+  // Named places paths lead to (peaks, waterfalls, huts, caves, trailheads), used to name unnamed paths.
+  const marks: Landmark[] = elements
+    .filter((e) => e.type === 'node' && e.lat != null && e.lon != null && (e.tags?.name || e.tags?.['name:en']))
+    .map((e) => ({ name: (e.tags!['name:en'] || e.tags!.name)!, at: [e.lat!, e.lon!] as LatLng, weight: markWeight(e.tags!) }))
   // Paths: group by name (unnamed mountain paths are grouped per difficulty and joined if they touch).
   const groups = new Map<string, { tags: Record<string, string>; lines: LatLng[][]; ids: number[] }>()
   for (const el of elements) {
     if (el.type !== 'way' || !el.geometry?.length) continue
     const tags = el.tags ?? {}
-    const name = tags.name || ''
+    const name = tags.name || tags['name:en'] || tags.official_name || tags.alt_name || ''
     if (name && routeNames.has(name.toLowerCase())) continue
     const key = name ? `n:${name.toLowerCase()}` : `s:${tags.sac_scale ?? tags.highway}`
     const g = groups.get(key) ?? { tags: {}, lines: [], ids: [] }
-    g.tags = { ...tags, ...g.tags }
+    g.tags = { ...tags, ...g.tags, ...(name && !g.tags.name ? { name } : {}) }
     g.lines.push(toLine(el.geometry))
     g.ids.push(el.id)
     groups.set(key, g)
   }
+  const usedNames = new Map<string, number>()
   for (const [key, g] of groups) {
     // Split same-named paths that are far apart (two different "Contour Path"s).
     for (const lines of clusters(g.lines)) {
       const distanceKm = lines.reduce((s, l) => s + lineKm(l), 0)
       const named = key.startsWith('n:')
       if (distanceKm < (named ? 0.3 : 0.8)) continue
-      const name = g.tags.name || `${difficulty(g.tags)?.label ?? 'Mountain'} path`
+      let name = g.tags.name
+      let tags = g.tags
+      if (!named) {
+        // "Path to Tugela Falls" if it ends at a named place; "Path near Cathkin Peak" if it passes one.
+        const dest = g.tags.destination
+        const mark = nearestMark(lines, marks)
+        const diff = difficulty(g.tags)?.label
+        if (dest) name = `Path to ${dest}`
+        else if (mark) name = `${mark.end ? 'Path to' : 'Path near'} ${mark.name}`
+        else if (distanceKm < 1.5) continue // short scraps with nothing nearby: just clutter
+        else name = `${diff ?? 'Mountain'} path`
+        const n = (usedNames.get(name) ?? 0) + 1
+        usedNames.set(name, n)
+        if (n > 1) name = `${name} (${n})`
+        tags = { ...g.tags, 'trailz:named': mark || dest ? 'guessed' : 'none' }
+      }
       const bbox = bboxOf(lines)
-      out.push({ id: `w${g.ids[0]}-${bbox[0].toFixed(3)}`, name, kind: 'path', distanceKm, lines, bbox, tags: g.tags, packIds: [], fetchedAt: now })
+      out.push({ id: `w${g.ids[0]}-${bbox[0].toFixed(3)}`, name: name!, kind: 'path', distanceKm, lines, bbox, tags, packIds: [], fetchedAt: now })
     }
   }
   return out.sort((a, b) => rankScore(b) - rankScore(a))
+}
+
+interface Landmark { name: string; at: LatLng; weight: number }
+const markWeight = (t: Record<string, string>) =>
+  t.natural === 'peak' || t.natural === 'waterfall' || t.waterway === 'waterfall' ? 3 : t.tourism?.endsWith('hut') || t.natural === 'cave_entrance' || t.mountain_pass ? 2 : 1
+
+/** The best named place at the end of these lines (within 400 m), else the best one they pass (within 1 km). */
+function nearestMark(lines: LatLng[][], marks: Landmark[]): { name: string; end: boolean } | null {
+  if (!marks.length) return null
+  const ends = lines.flatMap((l) => [l[0], l[l.length - 1]])
+  const score = (d: number, m: Landmark, limit: number) => (d < limit ? m.weight * 10 - d * 10 : -Infinity)
+  let best: { name: string; end: boolean; s: number } | null = null
+  for (const m of marks) {
+    const dEnd = Math.min(...ends.map((p) => haversineKm(p, m.at)))
+    const sEnd = score(dEnd, m, 0.4)
+    if (sEnd > (best?.end ? best.s : -Infinity)) best = { name: m.name, end: true, s: sEnd }
+  }
+  if (best) return best
+  const pts = lines.flatMap((l) => l.filter((_, i) => i % 4 === 0))
+  for (const m of marks) {
+    const d = Math.min(...pts.map((p) => haversineKm(p, m.at)))
+    const s = score(d, m, 1)
+    if (s > (best?.s ?? -Infinity)) best = { name: m.name, end: false, s }
+  }
+  return best
 }
 
 function clusters(lines: LatLng[][]): LatLng[][][] {
@@ -149,7 +202,7 @@ const endsNear = (a: LatLng[], b: LatLng[]) => {
   return ea.some((p) => eb.some((q) => haversineKm(p, q) < 0.5))
 }
 
-const rankScore = (t: Trail) => (t.kind === 'path' ? 0 : 100) + (t.tags.name ? 20 : 0) + Math.min(t.distanceKm, 40)
+const rankScore = (t: Trail) => (t.kind === 'path' ? 0 : 100) + (t.tags.name ? 20 : t.tags['trailz:named'] === 'guessed' ? 10 : 0) + Math.min(t.distanceKm, 40)
 
 export interface Difficulty { label: string; level: 1 | 2 | 3 | 4; speedKmh: number }
 export function difficulty(tags: Record<string, string>): Difficulty | null {

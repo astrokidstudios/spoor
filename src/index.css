@@ -787,3 +787,4 @@ html.modal-open .panel-scroll { overflow: hidden; }
 
 .map-expand-btn { display: none; }
 @media (max-width: 760px) { .map-expand-btn { display: grid; place-items: center; } }
+.guessed-name { margin: 6px 0 0; }
