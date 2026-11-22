@@ -90,11 +90,16 @@ export interface FoundPlace extends PlaceHit { label: string; px: number; py: nu
 /** Find the named places near you (or the map). Places far from the rest are dropped (same name elsewhere). */
 export async function findPlaces(facts: PictureFacts, near: LatLng, signal?: AbortSignal): Promise<FoundPlace[]> {
   const out: FoundPlace[] = []
+  let tried = 0, failed = 0
   for (const n of facts.names.slice(0, 14)) {
     if (signal?.aborted) break
-    const hits = await placesNamed(n.text, near, signal).catch(() => [] as PlaceHit[])
+    const hits = await placesNamed(n.text, near, signal).catch(() => { failed++; return [] as PlaceHit[] })
+    tried++
     const h = hits.find((p) => haversineKm(p.at, near) < 150)
     if (h && !out.some((o) => o.id === h.id)) out.push({ ...h, label: n.text, px: n.x, py: n.y, ph: n.h, pw: n.w, on: true })
+  }
+  if (!out.length && tried && failed === tried && !signal?.aborted) {
+    throw new Error(navigator.onLine === false ? 'Finding the places needs a connection.' : "Couldn't look up the places right now. Try again in a minute.")
   }
   if (out.length > 2) {
     // Keep the cluster: drop places much further from the middle than the rest.
