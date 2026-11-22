@@ -798,3 +798,16 @@ html.modal-open .panel-scroll { overflow: hidden; }
 .place-pin { background: none; border: none; overflow: visible; }
 .place-pin svg { display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
 .place-pin-label { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; background: #fff; color: #111; font: 700 12px/1.2 var(--font, sans-serif); padding: 4px 8px; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,.25); }
+.from-photo-pick { justify-self: start; cursor: pointer; }
+.from-photo-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.from-photo-list li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); min-width: 0; }
+.from-photo-list li:not(.on) { opacity: 0.55; }
+.from-photo-list li > span { display: grid; min-width: 0; }
+.from-photo-check { width: 24px; height: 24px; flex: none; border-radius: 7px; border: 2px solid var(--line); background: var(--surface); display: grid; place-items: center; color: #fff; padding: 0; }
+.from-photo-list li.on .from-photo-check { background: var(--brand, #15803d); border-color: var(--brand, #15803d); }
+.from-photo .field { display: grid; gap: 4px; }
+.from-photo-note { margin: 0; }
+.import-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+.import-row .link-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+.from-photo-list li > span.grow { flex: 1 1 0; overflow: hidden; }
+.from-photo-list li > span.grow > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

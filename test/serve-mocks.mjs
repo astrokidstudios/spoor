@@ -40,6 +40,17 @@ export async function mock(ctx, { ntfy = [], offline = { value: false } } = {}) 
       const coords = [[x1, y1], [x1 + (x2 - x1) * 0.5 + 0.002, y1 + (y2 - y1) * 0.5 - 0.002], [x2, y2]]
       return route.fulfill({ json: { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }] }, headers: cors })
     }
+    if (url.includes('photon.komoot.io') && /q=nandi/i.test(url)) return route.fulfill({ json: { features: [
+      { geometry: { coordinates: [29.381, -29.046] }, properties: { osm_id: 9, osm_type: 'N', osm_key: 'waterway', osm_value: 'waterfall', name: 'Nandi Falls', state: 'KwaZulu-Natal', country: 'South Africa' } },
+    ] }, headers: cors })
+    if (url.includes('cdn.jsdelivr.net/npm/tesseract.js')) return route.fulfill({ contentType: 'application/javascript', headers: cors, body: `window.Tesseract = { recognize: async () => ({ data: { lines: [
+      { text: 'Try Autumn foliage', bbox: { x0: 40, y0: 20, x1: 80, y1: 26 } },
+      { text: 'Nandi Falls', bbox: { x0: 10, y0: 80, x1: 30, y1: 85 } },
+      { text: 'Cathkin Peak', bbox: { x0: 70, y0: 60, x1: 90, y1: 65 } },
+      { text: 'Nandi Falls Loop ›', bbox: { x0: 5, y0: 120, x1: 60, y1: 132 } },
+      { text: '10.1 km 364 m 368 m 3h 4m', bbox: { x0: 5, y0: 136, x1: 90, y1: 142 } },
+      { text: 'Download', bbox: { x0: 5, y0: 180, x1: 40, y1: 188 } },
+    ] } }) }` })
     if (url.includes('photon.komoot.io')) return route.fulfill({ json: { features: [
       { geometry: { coordinates: [29.3976, -29.0476] }, properties: { osm_id: 1, osm_type: 'N', osm_key: 'natural', osm_value: 'peak', name: 'Cathkin Peak', state: 'KwaZulu-Natal', country: 'South Africa' } },
       { geometry: { coordinates: [29.42, -29.06] }, properties: { osm_id: 2, osm_type: 'W', osm_key: 'amenity', osm_value: 'bar', name: 'Blindman Pub' } },

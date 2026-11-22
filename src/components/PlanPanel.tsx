@@ -9,7 +9,7 @@ import { ArrowLeftRight, Bike, Eraser, Footprints, Magnet, RotateCcw, Star, Undo
 /** Plot your own route: tap the map to add points; magnetic mode follows real paths. */
 export default function PlanPanel({ onSaved }: { onSaved: (t: Trail) => void }) {
   const plan = usePlan()
-  const [name, setName] = useState('')
+  const [name, setName] = useState(plan.suggestName ?? '')
   const [climb, setClimb] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const km = planKm(plan)
@@ -78,6 +78,12 @@ export default function PlanPanel({ onSaved }: { onSaved: (t: Trail) => void }) 
         <div><b>{plan.busy ? <span className="spin" /> : shape === 'loop' ? 'Loop' : shape === 'out-back' ? (plan.outBack ? 'Out & back' : 'One way') : '–'}</b><span>shape</span></div>
       </div>
       {plan.note && <p className="note small">{plan.note}</p>}
+      {plan.targetKm != null && !plan.busy && plan.points.length > 1 && (
+        <p className="note small from-photo-note">
+          The picture said {plan.targetKm} km; this comes to {planTripKm(plan).toFixed(1)} km.
+          {Math.abs(planTripKm(plan) - plan.targetKm) > Math.max(0.6, plan.targetKm * 0.08) ? ' Tap Undo, then tap the map where the picture\'s route goes, to bring it closer.' : ' That matches.'}
+        </p>
+      )}
       <div className="row gap wrap">
         <button className="btn small" onClick={undoPoint} disabled={!plan.points.length}><Undo2 size={15} /> Undo</button>
         <button className="btn small" onClick={() => void finishRoute('loop')} disabled={plan.points.length < 2}><RotateCcw size={15} /> Back to start</button>

@@ -12,8 +12,9 @@ import Profile from './Profile'
 import TrailPhotos from './TrailPhotos'
 import RouteThumb from './RouteThumb'
 import SaveSheet from './SaveSheet'
-import { ArrowLeftRight, Car, ChevronLeft, FileUp, MapPin, Mountain, X, CloudDownload, ExternalLink, Globe, PenLine, Play, Search, ShieldCheck, Star } from 'lucide-react'
+import { ArrowLeftRight, Car, ChevronLeft, FileUp, ImageUp, MapPin, Mountain, X, CloudDownload, ExternalLink, Globe, PenLine, Play, Search, ShieldCheck, Star } from 'lucide-react'
 import PlanPanel from './PlanPanel'
+import FromPhoto from './FromPhoto'
 import { isMyRoute, setPlanActive, usePlan } from '../plan'
 
 type Filter = 'all' | TrailKind | 'saved' | 'near'
@@ -140,6 +141,7 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   }, [trails, filter, bounds, starred, groupFilter])
 
   const selected = trails.find((t) => t.id === selectedId) ?? starred?.find((t) => t.id === selectedId)
+  const [fromPhoto, setFromPhoto] = useState(false)
   const planning = usePlan().active
   if (planning) return <PlanPanel onSaved={() => setFilter('saved')} />
   if (selected) return <TrailDetail trail={selected} saved={!!savedIds?.has(selected.id)} onBack={() => setMap({ selectedId: null })} onDownload={onDownload} onStart={onStart} />
@@ -214,6 +216,9 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
         </button>
         <button className="btn" onClick={() => { setMap({ selectedId: null }); setPlanActive(true) }} title="Draw your own route on the map"><PenLine size={17} /> Plan</button>
       </div>
+      <div className="import-row">
+      <button className="link-btn" onClick={() => setFromPhoto(true)}><ImageUp size={15} aria-hidden="true" /> Trail from a picture</button>
+      {fromPhoto && <FromPhoto onClose={() => setFromPhoto(false)} />}
       <label className="link-btn gpx-import">
         <FileUp size={15} aria-hidden="true" /> Import a GPX file
         <input type="file" hidden onChange={async (e) => {
@@ -231,6 +236,7 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
           }
         }} />
       </label>
+      </div>
       {builtAt && !savedAt && status !== 'loading' && !moved && filter !== 'near' && (
         <p className="tiny muted saved-at">
           From Trailz's built-in trail map, updated {new Date(builtAt).toLocaleDateString([], { day: 'numeric', month: 'short' })}.{' '}

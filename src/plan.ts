@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { db, type LatLng, type Trail } from './db'
 import { bboxOf, haversineKm, lineKm } from './geo'
-import { getMap } from './mapbus'
+import { fitBBox, getMap } from './mapbus'
 
 /**
  * Plot your own route by tapping points on the map.
@@ -21,6 +21,9 @@ export interface PlanState {
   note: string
   /** Walk it there and back: the line is the way out; the return is the same path reversed. */
   outBack: boolean
+  /** Set when a route was rebuilt from a picture: its name and the length the picture gave. */
+  suggestName?: string
+  targetKm?: number | null
 }
 
 let state: PlanState = { active: false, magnetic: true, mode: 'walk', points: [], legs: [], busy: 0, note: '', outBack: false }
@@ -35,7 +38,17 @@ export const getPlan = () => state
 export const setPlanActive = (active: boolean) => set({ active })
 export const setMagnetic = (magnetic: boolean) => set({ magnetic })
 export const setPlanMode = (mode: PlanMode) => set({ mode })
-export const clearPlan = () => set({ points: [], legs: [], note: '', outBack: false })
+export const clearPlan = () => set({ points: [], legs: [], note: '', outBack: false, suggestName: undefined, targetKm: undefined })
+
+/** Lay a route through these places, one after another along real paths (and back to the start for a loop). */
+export async function planThrough(points: LatLng[], loop: boolean, name = '', targetKm: number | null = null) {
+  clearPlan()
+  set({ active: true, magnetic: true, mode: 'walk', suggestName: name, targetKm })
+  if (points.length > 1) fitBBox(bboxOf([points]), 14)
+  for (const p of points) await addPoint(p)
+  if (loop && points.length > 2) await addPoint(points[0])
+  else if (loop && points.length === 2) set({ outBack: true })
+}
 
 /** The whole route as one line. */
 export function planLine(s: PlanState = state): LatLng[] {
