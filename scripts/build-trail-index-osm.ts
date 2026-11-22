@@ -12,7 +12,7 @@
 import { createReadStream, existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { createInterface } from 'node:readline'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parseTrails, type OsmElement } from '../src/trails'
 import { TILE_DEG, tileKey, packTrail, type IndexEntry, type TrailIndex } from '../src/trailindex'
 
@@ -34,7 +34,7 @@ if (!opl) {
     console.error('osmium is not installed. On a Mac: brew install osmium-tool'); process.exit(1)
   }
   mkdirSync(WORK, { recursive: true })
-  const dir = WORK.pathname
+  const dir = fileURLToPath(WORK) // a real path: the folder name may contain spaces
   const files: string[] = []
   for (const url of EXTRACTS) {
     const f = dir + url.split('/').pop()
