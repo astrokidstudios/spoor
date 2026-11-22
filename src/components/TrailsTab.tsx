@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type BBox, type Trail, type TrailKind } from '../db'
 import { bboxCenter, fmtDuration, fmtKm, intersects, padBBox } from '../geo'
-import { fitBBox, flyTo, getMap, leaflet, setMap, useMapState } from '../mapbus'
+import { fitBBox, getMap, goToPlace, leaflet, setMap, useMapState } from '../mapbus'
 import { importGpxFile } from '../gpx'
 import { builtInTrails, driveMinutes, loadIndex, searchIndex, trailsFor, trailsNear } from '../trailindex'
 import { useTrailArea, allTrailsUrl, localTrailsNamed, placesNamed, trailsNamed, type PlaceHit } from '../findtrails'
@@ -154,8 +154,7 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
     setQ('')
     // Once the map has moved there, look for trails around it.
     m?.once('moveend', () => setTimeout(() => void search(), 50))
-    if (p.bbox && (p.bbox[2] - p.bbox[0] > 0.01 || p.bbox[3] - p.bbox[1] > 0.01)) fitBBox(p.bbox, 13)
-    else flyTo(p.at, 13)
+    goToPlace(p)
     if (!m) void search()
   }
 

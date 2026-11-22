@@ -794,3 +794,7 @@ html.modal-open .panel-scroll { overflow: hidden; }
 .near-seg button { border: 0; background: none; padding: 7px 14px; border-radius: 999px; font-weight: 700; font-size: 0.82rem; color: var(--muted, #6b7280); }
 .near-seg button.on { background: var(--surface); color: var(--brand-dark, var(--brand)); box-shadow: var(--shadow-sm); }
 .trail-meta .away { color: var(--brand-dark, var(--brand)); font-weight: 700; }
+
+.place-pin { background: none; border: none; overflow: visible; }
+.place-pin svg { display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
+.place-pin-label { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; background: #fff; color: #111; font: 700 12px/1.2 var(--font, sans-serif); padding: 4px 8px; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,.25); }

@@ -30,10 +30,11 @@ export default function MapView({ onSelect, extraTool }: { onSelect: (id: string
   const planLayer = useRef<L.LayerGroup | null>(null)
   const followedTrack = useRef(false)
   const groupLayer = useRef<L.LayerGroup | null>(null)
+  const pinLayer = useRef<L.LayerGroup | null>(null)
   const plan = usePlan()
   const watchRef = useRef<number | null>(null)
   const settings = useSettings()
-  const { trails, selectedId, me, preview, follow, track, group } = useMapState()
+  const { trails, selectedId, me, preview, follow, track, group, pin } = useMapState()
   const packs = useLiveQuery(() => db.packs.toArray(), [])
   const [styleOpen, setStyleOpen] = useState(false)
   const [locErr, setLocErr] = useState('')
@@ -52,6 +53,7 @@ export default function MapView({ onSelect, extraTool }: { onSelect: (id: string
     trackLayer.current = L.layerGroup().addTo(map)
     planLayer.current = L.layerGroup().addTo(map)
     groupLayer.current = L.layerGroup().addTo(map)
+    pinLayer.current = L.layerGroup().addTo(map)
     meLayer.current = L.layerGroup().addTo(map)
     const report = () => {
       const b = map.getBounds()
@@ -190,6 +192,17 @@ export default function MapView({ onSelect, extraTool }: { onSelect: (id: string
       g.addLayer(L.marker([m.lat, m.lng], { icon, zIndexOffset: 500 }).bindTooltip(`${esc(m.name)}${m.pct != null ? ` · ${m.pct}%` : ''}`, { direction: 'top', offset: [0, -14] }))
     }
   }, [group])
+
+  // The place you searched for: a pin with its name. Tap it to clear it.
+  useEffect(() => {
+    const g = pinLayer.current!
+    g.clearLayers()
+    if (!pin) return
+    const icon = L.divIcon({ className: 'place-pin', html: `<span class="place-pin-label">${esc(pin.name)}</span><svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z" fill="#dc2626" stroke="#fff" stroke-width="1.8"/><circle cx="12" cy="10" r="2.6" fill="#fff"/></svg>`, iconSize: [34, 34], iconAnchor: [17, 33] })
+    const m = L.marker(pin.at, { icon, zIndexOffset: 800, title: `${pin.name} (tap to remove the pin)`, alt: pin.name, keyboard: true })
+    m.on('click', () => setMap({ pin: null }))
+    g.addLayer(m)
+  }, [pin])
 
   // My location.
   useEffect(() => {

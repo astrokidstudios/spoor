@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { MapPin, Search, X } from 'lucide-react'
 import { placesNamed, type PlaceHit } from '../findtrails'
-import { fitBBox, flyTo, leaflet } from '../mapbus'
+import { goToPlace, leaflet } from '../mapbus'
 
 /** Search button on the map: type a town, peak or park and the map goes there. Works on every tab. */
 export default function MapSearch() {
@@ -33,8 +33,7 @@ export default function MapSearch() {
   }, [q])
 
   function go(p: PlaceHit) {
-    if (p.bbox && (p.bbox[2] - p.bbox[0] > 0.01 || p.bbox[3] - p.bbox[1] > 0.01)) fitBBox(p.bbox, 13)
-    else flyTo(p.at, 13)
+    goToPlace(p)
     close()
   }
   function close() { setOpen(false); setQ(''); setHits([]); (document.activeElement as HTMLElement | null)?.blur() }

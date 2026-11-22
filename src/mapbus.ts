@@ -17,6 +17,8 @@ export interface MapState {
   track: { lines: LatLng[][]; photos: { id: string; lat: number; lng: number }[]; guide?: LatLng[][]; live?: boolean } | null
   /** People on your group walk. */
   group?: Member[] | null
+  /** The place you last searched for, shown as a pin until the next search or until you tap it. */
+  pin?: { at: LatLng; name: string } | null
 }
 
 const VIEW_KEY = 'spoor.view'
@@ -45,4 +47,11 @@ export function fitBBox(b: BBox, maxZoom = 15) {
 }
 export function flyTo(p: LatLng, z?: number) {
   map?.flyTo(p, z ?? Math.max(map.getZoom(), 14), { duration: 0.8 })
+}
+
+/** Go to a searched place and drop a pin on it. */
+export function goToPlace(p: { name: string; at: LatLng; bbox?: BBox }) {
+  setMap({ pin: { at: p.at, name: p.name } })
+  if (p.bbox && (p.bbox[2] - p.bbox[0] > 0.01 || p.bbox[3] - p.bbox[1] > 0.01)) fitBBox(p.bbox, 13)
+  else flyTo(p.at, 13)
 }
