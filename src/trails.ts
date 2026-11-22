@@ -145,12 +145,16 @@ export function parseTrails(elements: OsmElement[]): Trail[] {
   const usedNames = new Map<string, number>()
   for (const [key, g] of groups) {
     // Split same-named paths that are far apart (two different "Contour Path"s).
-    for (const lines of clusters(g.lines)) {
-      const distanceKm = lines.reduce((s, l) => s + lineKm(l), 0)
-      const named = key.startsWith('n:')
-      if (distanceKm < (named ? 0.3 : 0.8)) continue
+    const named = key.startsWith('n:')
+    const parts = clusters(g.lines).map((lines) => ({ lines, distanceKm: lines.reduce((s, l) => s + lineKm(l), 0) })).filter((c) => c.distanceKm >= (named ? 0.3 : 0.8))
+    for (const { lines, distanceKm } of parts) {
       let name = g.tags.name
       let tags = g.tags
+      // Several separate pieces with the same name (the Contour Path in different valleys): say which one.
+      if (named && parts.length > 1) {
+        const m = nearestMark(lines, marks) ?? farMark(lines, marks)
+        if (m) name = `${name} · near ${m.name}`
+      }
       if (!named) {
         // "Path to Tugela Falls" if it ends at a named place; "Path near Cathkin Peak" if it passes one.
         const dest = g.tags.destination
