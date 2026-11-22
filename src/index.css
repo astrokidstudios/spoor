@@ -816,3 +816,10 @@ html.modal-open .panel-scroll { overflow: hidden; }
 .from-photo-foot .btn { white-space: nowrap; }
 .trace-bar { display: grid !important; gap: 8px; justify-items: start; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
 .leaflet-image-layer.trace-picture { mix-blend-mode: multiply; }
+
+/* Walk backup status */
+.backup-line { display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #16a34a 9%, transparent); color: inherit; }
+.backup-line.warn { background: color-mix(in srgb, #d97706 12%, transparent); }
+.backup-line .grow { min-width: 0; }
+.backup-line .link-btn { white-space: nowrap; }
+.spin-ico { animation: spin 1s linear infinite; }

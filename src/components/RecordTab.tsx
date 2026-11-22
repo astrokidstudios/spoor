@@ -6,10 +6,14 @@ import { fitBBox, getMap, setMap, useMapState } from '../mapbus'
 import { ACTIVITY_LABEL, addPhotos, deleteWalk, elapsedMs, finishWalk, pauseWalk, renameWalk, resumeWalk, startWalk, useRec } from '../record'
 import { useSettings } from '../settings'
 import { tripOf } from '../trails'
-import { Camera, Check, ChevronLeft, Flag, Footprints, Images, MountainSnow, Pause, PersonStanding, Play, Square, Trash2, TriangleAlert, Trophy } from 'lucide-react'
+import { Camera, Check, ChevronLeft, CloudCheck, CloudOff, Download, Flag, Footprints, Images, MountainSnow, Pause, PersonStanding, Play, RefreshCw, Square, Trash2, TriangleAlert, Trophy } from 'lucide-react'
 import RouteThumb from './RouteThumb'
 import GroupCard from './GroupCard'
 import OfflinePrompt from './OfflinePrompt'
+import { AccountModal } from './Friends'
+import { syncWalks, useBackup } from '../backup'
+import { useAccount } from '../cloud'
+import { saveWalkGpx } from '../gpx'
 
 export default function RecordTab({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { walk } = useRec()
@@ -27,6 +31,7 @@ export default function RecordTab({ onOpenSettings }: { onOpenSettings: () => vo
     <div className="tab-body">
       <StartCard onOpenSettings={onOpenSettings} />
       <h3 className="section-h">Your walks</h3>
+      {!!walks?.length && <BackupLine />}
       {!walks?.length && (
         <div className="empty">
           <span className="empty-art" aria-hidden="true"><Footprints size={30} /></span>
@@ -131,7 +136,7 @@ function ActiveWalk({ walk, onFinished }: { walk: Walk; onFinished: (w: Walk) =>
   const pace = walk.distanceKm > 0.05 ? ms / 60000 / walk.distanceKm : 0
   const off = progress?.offTrailM ?? null
 
-  async function onPhotos(files: FileList | null, camera: boolean) {
+  async function onPhotos(files: File[] | null, camera: boolean) {
     if (!files?.length) return
     try {
       const n = await addPhotos(walk.id, files, camera)
@@ -245,8 +250,13 @@ function WalkDetail({ walk, onBack }: { walk: Walk; onBack: () => void }) {
         try { const n = await addPhotos(walk.id, f, cam); setPhotoMsg(n ? `${n} photo${n > 1 ? 's' : ''} added` : "That file isn't a photo.") } catch (e) { setPhotoMsg((e as Error).message) }
         setTimeout(() => setPhotoMsg(''), 5000)
       }} />
+      <p className="tiny muted">Add photos any time, even days later. Ones from your library go where you took them on the route.</p>
       {photoMsg && <p className="small good">{photoMsg}</p>}
       <PhotoStrip photos={photos ?? []} big />
+      <button className="btn block" onClick={async () => {
+        try { await saveWalkGpx(walk) } catch (e) { setPhotoMsg(`Couldn't save the file (${(e as Error).message}).`) }
+      }}><Download size={16} /> Save as GPX file</button>
+      <BackupLine />
       <button className={`btn ${confirmDel ? 'danger' : 'subtle'}`} onClick={async () => {
         if (!confirmDel) { setConfirmDel(true); setTimeout(() => setConfirmDel(false), 4000); return }
         await deleteWalk(walk.id)
@@ -257,15 +267,42 @@ function WalkDetail({ walk, onBack }: { walk: Walk; onBack: () => void }) {
   )
 }
 
-function PhotoButtons({ onFiles }: { onFiles: (f: FileList | null, camera: boolean) => void }) {
+/** Whether your walks are backed up to your account. */
+function BackupLine() {
+  const { session, profile } = useAccount()
+  const b = useBackup()
+  const [signIn, setSignIn] = useState(false)
+  if (!session) return (
+    <>
+      <p className="backup-line warn small">
+        <CloudOff size={15} aria-hidden="true" />
+        <span className="grow">Saved on this phone only.</span>
+        <button className="link-btn" onClick={() => setSignIn(true)}>Sign in to back up</button>
+      </p>
+      {signIn && <AccountModal onClose={() => setSignIn(false)} reason="Sign in to back up your walks and photos, so they're safe on a new phone or if the app is deleted." />}
+    </>
+  )
+  const who = profile ? ` to @${profile.username}` : ''
+  return (
+    <p className={`backup-line small ${b.state === 'error' ? 'warn' : ''}`}>
+      {b.state === 'working' ? <RefreshCw size={15} className="spin-ico" aria-hidden="true" /> : b.state === 'error' ? <CloudOff size={15} aria-hidden="true" /> : <CloudCheck size={15} aria-hidden="true" />}
+      <span className="grow">
+        {b.state === 'working' ? `Backing up${who}…` : b.state === 'error' ? `Not backed up yet: ${b.error}` : b.state === 'done' ? `Walks and photos backed up${who}` : `Backs up${who}`}
+      </span>
+      {b.state !== 'working' && <button className="link-btn" onClick={() => void syncWalks()}>{b.state === 'error' ? 'Try again' : 'Back up now'}</button>}
+    </p>
+  )
+}
+
+function PhotoButtons({ onFiles }: { onFiles: (f: File[] | null, camera: boolean) => void }) {
   const cam = useRef<HTMLInputElement>(null)
   const lib = useRef<HTMLInputElement>(null)
   return (
     <div className="row gap photo-btns">
       <button className="btn grow" onClick={() => cam.current?.click()}><Camera size={17} /> Take photo</button>
       <button className="btn grow" onClick={() => lib.current?.click()}><Images size={17} /> Add from photos</button>
-      <input ref={cam} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onFiles(e.target.files, true); e.target.value = '' }} />
-      <input ref={lib} type="file" accept="image/*" multiple hidden aria-label="Add photos" onChange={(e) => { onFiles(e.target.files, false); e.target.value = '' }} />
+      <input ref={cam} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onFiles(e.target.files ? Array.from(e.target.files) : null, true); e.target.value = '' }} />
+      <input ref={lib} type="file" accept="image/*" multiple hidden aria-label="Add photos" onChange={(e) => { onFiles(e.target.files ? Array.from(e.target.files) : null, false); e.target.value = '' }} />
     </div>
   )
 }

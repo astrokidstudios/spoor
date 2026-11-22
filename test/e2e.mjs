@@ -13,6 +13,7 @@ const b = await chromium.launch(process.env.CHROME ? { executablePath: process.e
 const ntfy = []
 const offline = { value: false }
 const errors = []
+const EXIF_JPG = '/9j/4AAQSkZJRgABAQAAAQABAAD/4QDORXhpZgAATU0AKgAAAAgAAodpAAQAAAABAAAAJoglAAQAAAABAAAAYAAAAAAAApADAAIAAAAUAAAARJARAAIAAAAHAAAAWAAAAAAyMDI2OjExOjIyIDE0OjA1OjMwACswMjowMAAAAAQAAQACAAAAAlMAAAAAAgAFAAAAAwAAAJYAAwACAAAAAkUAAAAABAAFAAAAAwAAAK4AAAAAAAAAHQAAAAEAAAACAAAAAQAAAB4AAAABAAAAHQAAAAEAAAAZAAAAAQAAAAwAAAAB/9sAQwAIBgYHBgUIBwcHCQkICgwUDQwLCwwZEhMPFB0aHx4dGhwcICQuJyAiLCMcHCg3KSwwMTQ0NB8nOT04MjwuMzQy/9sAQwEJCQkMCwwYDQ0YMiEcITIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy/8AAEQgAHgAoAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/aAAwDAQACEQMRAD8AuUUUV4xxhRRRQAUUUUAFFFFABRRRQAUUUUAf/9k=' // 40x30 JPEG taken 22 Nov 2026 14:05 +02:00 at -29.04, 29.42
 const ok = (cond, msg) => { console.log(cond ? '✓' : '✗', msg); if (!cond) process.exitCode = 1 }
 
 // ---- Layout check: nothing may stick out of its box or the screen ----
@@ -500,6 +501,18 @@ await r.locator('.walk-list .trail-card').first().click()
 await r.waitForSelector('.photo-strip.big img')
 await r.waitForTimeout(500)
 await snap(r, `${OUT}/13-phone-walk-detail.png`)
+// Signed out: the walk list says walks are on this phone only, with a way to back them up.
+ok(/Saved on this phone only/.test(await r.locator('.backup-line').textContent()), 'signed out: says walks are only on this phone')
+// Save the walk as a GPX file.
+const [gpxDl] = await Promise.all([r.waitForEvent('download', { timeout: 5000 }), r.getByRole('button', { name: /Save as GPX file/ }).click()])
+const gpxText = await (await import('node:fs/promises')).readFile(await gpxDl.path(), 'utf8')
+ok(/\.gpx$/.test(gpxDl.suggestedFilename()) && /<trkpt lat="-?\d/.test(gpxText) && /<time>/.test(gpxText) && /Blindman/.test(gpxText), `walk saved as GPX: ${gpxDl.suggestedFilename()}`)
+// Add a photo after the walk is done; its EXIF time puts it on the route.
+const exifJpg = Buffer.from(EXIF_JPG, 'base64')
+const nBefore = await r.locator('.photo-strip.big img').count()
+await r.locator('input[aria-label="Add photos"]').setInputFiles({ name: 'later.jpg', mimeType: 'image/jpeg', buffer: exifJpg })
+const laterOk = await r.waitForFunction((n) => document.querySelectorAll('.photo-strip.big img').length > n, nBefore, { timeout: 5000 }).then(() => true, () => false)
+ok(laterOk, 'photo added after the walk is finished ' + (laterOk ? '' : await r.locator('.tab-body').textContent()))
 
 // Go to a place from the map's own search button.
 await r.getByLabel('Search for a place on the map').click()

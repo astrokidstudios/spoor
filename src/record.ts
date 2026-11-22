@@ -7,6 +7,8 @@ import { getSettings } from './settings'
 import { BG, isNative } from './share'
 import { endGroup, goLiveForFollowers, reportPosition } from './group'
 import { shareFinishedWalk, unshareWalk } from './cloud'
+import { forgetWalkBackup, syncWalks } from './backup'
+import { photoFacts } from './exif'
 
 /** Recording walks: GPS track, time (pauses not counted), distance, climb, calories, photos and progress along a trail. */
 
@@ -270,6 +272,7 @@ export async function finishWalk() {
   endGroup()
   await db.walks.put(done)
   void shareFinishedWalk(done)
+  void syncWalks()
   set({ walk: null, progress: null, gpsError: '' })
   return done
 }
@@ -296,11 +299,13 @@ export async function deleteWalk(id: string) {
     await db.photos.where('walkId').equals(id).delete()
     await db.walks.delete(id)
   })
+  forgetWalkBackup(id)
 }
 
 export async function renameWalk(id: string, name: string) {
   await db.walks.update(id, { name })
   if (state.walk?.id === id) set({ walk: { ...state.walk, name } })
+  else void syncWalks()
 }
 
 // ---- Photos ----
@@ -329,6 +334,11 @@ function placeAt(w: Walk, t: number): { lat?: number; lng?: number } {
   return { lat: best.lat, lng: best.lng }
 }
 
+/** A photo's own location counts if it was taken within 2 km of the route. */
+function nearWalk(w: Walk, lat: number, lng: number) {
+  return w.points.some((p) => haversineKm([p.lat, p.lng], [lat, lng]) < 2)
+}
+
 // The picker only offers photos, but the iPhone app hands camera shots over with no type or file name, so only skip clear non-photos.
 const looksLikeImage = (f: File) => !/^(video|audio|text|application\/(pdf|zip))/.test(f.type) && f.size > 0
 
@@ -341,9 +351,12 @@ export async function addPhotos(walkId: string, files: FileList | File[], fromCa
   for (const f of Array.from(files)) {
     if (!looksLikeImage(f)) continue
     try {
-      const at = fromCamera ? Date.now() : f.lastModified || Date.now()
+      // From the library (often added after the walk): use when and where the photo was taken.
+      const facts = fromCamera ? {} : await photoFacts(f)
+      const at = fromCamera ? Date.now() : facts.at ?? (f.lastModified || Date.now())
       const small = await shrink(f)
-      const photo: Photo = { id: uid(), walkId, at, data: await small.arrayBuffer(), type: small.type || f.type || 'image/jpeg', ...placeAt(w, at) }
+      const where = facts.lat != null && facts.lng != null && nearWalk(w, facts.lat, facts.lng) ? { lat: facts.lat, lng: facts.lng } : placeAt(w, at)
+      const photo: Photo = { id: uid(), walkId, at, data: await small.arrayBuffer(), type: small.type || f.type || 'image/jpeg', ...where }
       await db.photos.put(photo)
       n++
     } catch (e) {
@@ -351,6 +364,7 @@ export async function addPhotos(walkId: string, files: FileList | File[], fromCa
       console.warn('photo not saved', e)
     }
   }
+  if (n && w.status === 'done') void syncWalks()
   if (!n && lastErr) throw new Error(`Couldn't save that photo (${(lastErr as Error).message || 'unknown error'}).`)
   return n
 }
