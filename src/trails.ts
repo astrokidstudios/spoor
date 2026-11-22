@@ -18,12 +18,14 @@ interface OsmElement {
   members?: { type: string; role: string; geometry?: OsmGeomPoint[] }[]
 }
 
-function query(b: BBox) {
+/** The trail-server question for an area. The built-in map (timeout > 25) leaves out named town footpaths to stay small. */
+export function trailQuery(b: BBox, timeout = 25) {
   const bb = b.map((v) => v.toFixed(5)).join(',')
-  return `[out:json][timeout:25];
+  const named = timeout > 25 ? 'path|bridleway|track' : 'path|footway|bridleway|track'
+  return `[out:json][timeout:${timeout}];
 (
   relation["type"="route"]["route"~"^(hiking|foot|walking|running|fitness_trail)$"](${bb});
-  way["highway"~"^(path|footway|bridleway|track)$"]["name"](${bb});
+  way["highway"~"^(${named})$"]["name"](${bb});
   way["highway"~"^(path|footway|track)$"]["sac_scale"](${bb});
   node["natural"~"^(peak|waterfall|cave_entrance|saddle|spring|rock)$"]["name"](${bb});
   node["waterway"="waterfall"]["name"](${bb});
@@ -87,6 +89,9 @@ export async function overpassQuery(q: string, signal?: AbortSignal, onRetry?: (
     }
     await new Promise((r) => setTimeout(r, 2000))
   }
+  const msg = lastErr instanceof Error ? lastErr.message : ''
+  // Browsers report a timed-out request as "Fetch is aborted" and the like: say what it means.
+  if (!msg || /abort|timed? ?out|network|load failed|failed to fetch/i.test(msg)) throw new Error('The free trail servers are very slow right now. Try again in a minute, or search a smaller area.')
   throw lastErr instanceof Error ? lastErr : new Error('Could not reach the trail server')
 }
 
@@ -270,7 +275,7 @@ export const KIND_LABEL: Record<TrailKind, string> = { hiking: 'Hiking route', w
 export async function fetchTrails(b: BBox, signal?: AbortSignal, onRetry?: (msg: string) => void) {
   const { w, h } = bboxSizeKm(b)
   if (w > MAX_SEARCH_KM * 1.5 || h > MAX_SEARCH_KM * 1.5) throw new Error('Zoom in a little to search for trails in this area.')
-  const data = await overpassQuery(query(b), signal, onRetry)
+  const data = await overpassQuery(trailQuery(b), signal, onRetry)
   return parseTrails(data.elements)
 }
 

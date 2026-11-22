@@ -4,6 +4,7 @@ import { db, type BBox, type Trail, type TrailKind } from '../db'
 import { bboxCenter, fmtDuration, fmtKm, intersects, padBBox } from '../geo'
 import { fitBBox, flyTo, getMap, leaflet, setMap, useMapState } from '../mapbus'
 import { importGpxFile } from '../gpx'
+import { builtInTrails, driveMinutes, loadIndex, searchIndex, trailsFor, trailsNear } from '../trailindex'
 import { useTrailArea, allTrailsUrl, localTrailsNamed, placesNamed, trailsNamed, type PlaceHit } from '../findtrails'
 import { cachedSearch, difficulty, estimateHours, SHAPE_LABEL, tripOf, fetchProfile, FRESH_MS, KIND_LABEL, offlineTrails, searchAndSave } from '../trails'
 import { KIND_COLOR } from './MapView'
@@ -15,9 +16,10 @@ import { ArrowLeftRight, Car, ChevronLeft, FileUp, MapPin, Mountain, X, CloudDow
 import PlanPanel from './PlanPanel'
 import { isMyRoute, setPlanActive, usePlan } from '../plan'
 
-type Filter = 'all' | TrailKind | 'saved'
+type Filter = 'all' | TrailKind | 'saved' | 'near'
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
+  { id: 'near', label: 'Near me' },
   { id: 'hiking', label: 'Hikes' },
   { id: 'walking', label: 'Walks' },
   { id: 'running', label: 'Runs' },
@@ -34,6 +36,7 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   const allGroups = useLiveQuery(() => db.groups.orderBy('createdAt').toArray(), [])
   const [searchedFor, setSearchedFor] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)
+  const [builtAt, setBuiltAt] = useState<number | null>(null)
   const abort = useRef<AbortController | null>(null)
   const starred = useLiveQuery(() => db.trails.filter((t) => !!t.starred).toArray(), [])
   const savedIds = useLiveQuery(async () => new Set((await db.trails.toArray()).filter((t) => t.packIds.length).map((t) => t.id)), [])
@@ -66,6 +69,18 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
     abort.current?.abort()
     const ac = (abort.current = new AbortController())
     setMsg('')
+    // 0. Inside Trailz's built-in trail map: instant, no trail server needed (Refresh still asks one).
+    const built = force ? null : await builtInTrails(b).catch(() => null)
+    if (ac.signal.aborted) return
+    if (built) {
+      await show(built.sort((x, y) => rank(y) - rank(x)), b)
+      setSavedAt(null)
+      setBuiltAt((await loadIndex())?.at ?? null)
+      setStatus('idle')
+      if (!built.length) setMsg('No mapped trails here yet. Try moving or zooming out the map.')
+      return
+    }
+    setBuiltAt(null)
     // 1. Searched this area in the last week? Show that straight away.
     const cached = force ? null : await cachedSearch(b).catch(() => null)
     if (ac.signal.aborted) return
@@ -121,7 +136,7 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
   const shown = useMemo(() => {
     const src = filter === 'saved' ? (starred ?? []).filter((t) => !groupFilter || t.groups?.includes(groupFilter)) : trails
     const inView = bounds && filter !== 'saved' ? src.filter((t) => intersects(t.bbox, bounds)) : src
-    return filter === 'all' || filter === 'saved' ? inView : inView.filter((t) => t.kind === filter)
+    return filter === 'all' || filter === 'saved' || filter === 'near' ? inView : inView.filter((t) => t.kind === filter)
   }, [trails, filter, bounds, starred, groupFilter])
 
   const selected = trails.find((t) => t.id === selectedId) ?? starred?.find((t) => t.id === selectedId)
@@ -217,6 +232,12 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
           }
         }} />
       </label>
+      {builtAt && !savedAt && status !== 'loading' && !moved && filter !== 'near' && (
+        <p className="tiny muted saved-at">
+          From Trailz's built-in trail map, updated {new Date(builtAt).toLocaleDateString([], { day: 'numeric', month: 'short' })}.{' '}
+          <button className="link-btn" onClick={() => search(true)}>Check for newer trails</button>
+        </p>
+      )}
       {savedAt && status !== 'loading' && !moved && (
         <p className="tiny muted saved-at">
           Trails saved {agoText(savedAt)}, so they load instantly.{' '}
@@ -240,8 +261,9 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
           ))}
         </div>
       )}
-      {msg && <p className={`note ${status === 'error' ? 'error' : ''}`}>{msg}</p>}
-      <ul className="trail-list">
+      {filter === 'near' && <NearMe saved={savedIds} onOpen={(t) => { if (!trails.some((x) => x.id === t.id)) setMap({ trails: [...trails, t] }); setMap({ selectedId: t.id }); fitBBox(t.bbox) }} />}
+      {msg && filter !== 'near' && <p className={`note ${status === 'error' ? 'error' : ''}`}>{msg}</p>}
+      {filter !== 'near' && <ul className="trail-list">
         {shown.map((t) => (
           <TrailCard key={t.id} t={t} saved={!!savedIds?.has(t.id)} onClick={() => {
             if (filter === 'saved' && !trails.some((x) => x.id === t.id)) setMap({ trails: [...trails, t] })
@@ -249,8 +271,8 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
             fitBBox(t.bbox)
           }} />
         ))}
-      </ul>
-      {!shown.length && status === 'idle' && !msg && filter !== 'all' && <p className="note">Nothing in this filter on the map right now.</p>}
+      </ul>}
+      {!shown.length && status === 'idle' && !msg && filter !== 'all' && filter !== 'near' && <p className="note">Nothing in this filter on the map right now.</p>}
       <p className="credit">Trails from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors. Always check conditions and carry a paper map in the mountains.</p>
     </div>
   )
@@ -258,7 +280,7 @@ export default function TrailsTab({ onDownload, onStart }: { onDownload: () => v
 
 const pick = (t?: Trail) => (t ? { profile: t.profile, ascent: t.ascent, descent: t.descent, starred: t.starred, groups: t.groups, packIds: t.packIds } : {})
 
-function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: () => void }) {
+function TrailCard({ t, saved, onClick, away }: { t: Trail; saved: boolean; onClick: () => void; away?: string }) {
   const d = difficulty(t.tags)
   const est = estimateHours(t)
   const trip = tripOf(t)
@@ -268,7 +290,7 @@ function TrailCard({ t, saved, onClick }: { t: Trail; saved: boolean; onClick: (
         <span className="thumb-tile"><RouteThumb lines={t.lines} color={KIND_COLOR[t.kind]} /></span>
         <span className="grow">
           <span className="trail-name">{t.name}</span>
-          <span className="trail-meta">{fmtKm(trip.km)}{trip.shape === 'out-back' ? ' return' : ''} · ~{fmtDuration(est.walk)} · {KIND_LABEL[t.kind]}</span>
+          <span className="trail-meta">{away && <b className="away">{away} · </b>}{fmtKm(trip.km)}{trip.shape === 'out-back' ? ' return' : ''} · ~{fmtDuration(est.walk)} · {KIND_LABEL[t.kind]}</span>
           <span className="trail-tags sm">
             <span className={`shape ${trip.shape}`}>{SHAPE_LABEL[trip.shape]}</span>
             {d && <span className={`diff d${d.level}`}>{d.label}</span>}
@@ -382,14 +404,24 @@ function useNameSearch(q: string) {
     const ac = new AbortController()
     let local: Trail[] = []
     const merge = (a: Trail[], b: Trail[]) => [...new Map([...a, ...b].map((t) => [t.id, t])).values()]
-    void localTrailsNamed(text).then((l) => { if (!ac.signal.aborted) { local = l; setR((x) => ({ ...x, trails: l, done: false, err: '' })) } })
+    const here = (() => { const b = getMap().bounds; return b ? bboxCenter(b) : savedViewCenter() })()
+    let fromMap = 0
+    void Promise.all([localTrailsNamed(text), searchIndex(text, here).then(trailsFor)]).then(([l, idx]) => {
+      if (ac.signal.aborted) return
+      local = merge(l, idx)
+      fromMap = idx.length
+      setR((x) => ({ ...x, trails: local, done: false, err: '' }))
+    })
     const t = setTimeout(async () => {
       if (text.length < 3) { setR((x) => ({ ...x, busy: false, done: true })); return }
       if (navigator.onLine === false) { setR((x) => ({ ...x, busy: false, done: true, err: 'Offline: showing trails already on your phone.' })); return }
       setR((x) => ({ ...x, busy: true }))
       const b = getMap().bounds
       const center = b ? bboxCenter(b) : savedViewCenter()
-      const [trails, places] = await Promise.allSettled([trailsNamed(text, center, ac.signal), placesNamed(text, center, ac.signal)])
+      // The built-in map already searched the whole region: only ask the slow trail servers when it found nothing.
+      const idx = await loadIndex()
+      const covered = !!idx && center[0] >= idx.region[0] && center[0] <= idx.region[2] && center[1] >= idx.region[1] && center[1] <= idx.region[3]
+      const [trails, places] = await Promise.allSettled([covered && fromMap > 0 ? Promise.resolve([]) : trailsNamed(text, center, ac.signal), placesNamed(text, center, ac.signal)])
       if (ac.signal.aborted) return
       const remote = trails.status === 'fulfilled' ? trails.value : []
       setR({
@@ -397,7 +429,7 @@ function useNameSearch(q: string) {
         places: places.status === 'fulfilled' ? places.value : [],
         busy: false,
         done: true,
-        err: trails.status === 'rejected' ? 'The trail servers are busy, so only some results are showing. Try again in a minute.' : '',
+        err: trails.status === 'rejected' && !local.length ? 'The trail servers are busy, so only some results are showing. Try again in a minute.' : '',
       })
     }, 700)
     return () => { clearTimeout(t); ac.abort() }
@@ -408,4 +440,56 @@ function useNameSearch(q: string) {
 const savedViewCenter = (): [number, number] => {
   const c = leaflet()?.getCenter()
   return c ? [c.lat, c.lng] : [-29.035, 29.37]
+}
+
+const rank = (t: Trail) => (t.kind === 'path' ? 0 : 100) + (t.tags.name ? 20 : t.tags['trailz:named'] === 'guessed' ? 10 : 0) + Math.min(t.distanceKm, 40)
+
+const NEAR_KEY = 'trailz.nearMinutes'
+
+/** Trails within a 30-minute (default) or 1-hour drive of where you are, wherever the map is. */
+function NearMe({ saved, onOpen }: { saved?: Set<string>; onOpen: (t: Trail) => void }) {
+  const [minutes, setMinutes] = useState<number>(() => { try { return Number(localStorage.getItem(NEAR_KEY)) || 30 } catch { return 30 } })
+  const [list, setList] = useState<{ t: Trail; km: number }[] | null>(null)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    let alive = true
+    setList(null)
+    setErr('')
+    ;(async () => {
+      let me = getMap().me
+      if (!me) {
+        try {
+          const p = await new Promise<GeolocationPosition>((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, { enableHighAccuracy: false, maximumAge: 300000, timeout: 15000 }))
+          me = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }
+        } catch {
+          if (alive) setErr('Turn on location for Trailz to see trails near you.')
+          return
+        }
+      }
+      if (!(await loadIndex())) { if (alive) setErr('Near me needs the built-in trail map, which this version doesn\'t have.'); return }
+      const near = await trailsNear([me.lat, me.lng], minutes)
+      const full = await trailsFor(near.map((x) => x.e))
+      const km = new Map(near.map((x) => [x.e[0], x.km]))
+      if (alive) setList(full.map((t) => ({ t, km: km.get(t.id) ?? 0 })))
+    })()
+    return () => { alive = false }
+  }, [minutes])
+  const pickMin = (m: number) => { setMinutes(m); try { localStorage.setItem(NEAR_KEY, String(m)) } catch { /* ignore */ } }
+  return (
+    <>
+      <div className="near-seg" role="group" aria-label="Driving time">
+        {[30, 60].map((m) => <button key={m} className={minutes === m ? 'on' : ''} aria-pressed={minutes === m} onClick={() => pickMin(m)}>{m === 60 ? '1 hour' : '30 min'} drive</button>)}
+      </div>
+      {err && <p className="note">{err}</p>}
+      {!err && !list && <p className="note small"><span className="spin" /> Finding trails near you…</p>}
+      {list && !list.length && <p className="note">No mapped trails within a {minutes === 60 ? '1-hour' : '30-minute'} drive.{minutes === 30 ? ' Try 1 hour.' : ''}</p>}
+      {list && list.length > 0 && (
+        <ul className="trail-list">
+          {list.map(({ t, km }) => (
+            <TrailCard key={t.id} t={t} saved={!!saved?.has(t.id)} away={`~${Math.max(5, Math.round(driveMinutes(km) / 5) * 5)} min drive`} onClick={() => onOpen(t)} />
+          ))}
+        </ul>
+      )}
+    </>
+  )
 }

@@ -12,6 +12,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "icons": "node scripts/make-icons.mjs",
+    "trails": "rolldown scripts/build-trail-index.ts --format esm --platform node -o node_modules/.cache/build-trails.mjs && node node_modules/.cache/build-trails.mjs",
     "desktop": "npm run build && electron .",
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",

@@ -77,9 +77,18 @@ async function checkLayout(page, name) {
 }
 const snap = async (page, path) => { await page.screenshot({ path }); await checkLayout(page, path.split('/').pop()) }
 
-async function context(opts) {
-  const ctx = await b.newContext({ serviceWorkers: 'block', permissions: ['geolocation', 'clipboard-read', 'clipboard-write', 'accelerometer', 'gyroscope', 'magnetometer'], geolocation: { latitude: -29.0402, longitude: 29.3995, accuracy: 9 }, ...opts })
+import { readFile } from 'node:fs/promises'
+async function context(opts = {}) {
+  const { builtIn, ...rest } = opts
+  const ctx = await b.newContext({ serviceWorkers: 'block', permissions: ['geolocation', 'clipboard-read', 'clipboard-write', 'accelerometer', 'gyroscope', 'magnetometer'], geolocation: { latitude: -29.0402, longitude: 29.3995, accuracy: 9 }, ...rest })
   const log = await mock(ctx, { ntfy, offline })
+  // The real built-in trail map is left out of the mock tests; one context uses a small fixture copy instead.
+  await ctx.route(/\/trails\/[^/]+\.json$/, async (route) => {
+    if (!builtIn) return route.fulfill({ status: 404, body: '' })
+    log.push('BUILTIN ' + route.request().url().split('/').pop())
+    try { return route.fulfill({ body: await readFile(new globalThis.URL('./fixture-trails/' + route.request().url().split('/').pop(), import.meta.url)), contentType: 'application/json' }) }
+    catch { return route.fulfill({ status: 404, body: '' }) }
+  })
   return { ctx, log }
 }
 
@@ -519,6 +528,29 @@ ok((await r.locator('.trail-title').textContent()) === 'Tugela Gorge', 'GPX impo
 ok((await r.getByRole('button', { name: /Start this trail/ }).count()) === 1, 'imported trail can be started')
 await r.waitForTimeout(400)
 await snap(r, `${OUT}/15-phone-gpx-trail.png`)
+
+// ---- Built-in trail map: trails, Near me and name search with no trail-server request ----
+{
+  const { ctx: c6, log: l6 } = await context({ builtIn: true, viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  const q = await c6.newPage()
+  q.on('pageerror', (e) => errors.push(String(e)))
+  await q.goto(URL)
+  await q.waitForSelector('.trail-card', { timeout: 15000 })
+  ok(l6.some((l) => l.startsWith('BUILTIN')) && !l6.some((l) => l.includes('overpass')), 'trails come from the built-in map, no trail-server request')
+  ok(/built-in trail map/.test(await q.textContent('body')), 'says the trails are from the built-in map')
+  await q.getByRole('button', { name: /Near me/ }).click()
+  await q.waitForSelector('.trail-meta .away', { timeout: 8000 })
+  ok((await q.locator('.near-seg button.on').textContent()).includes('30 min'), 'Near me starts at a 30 minute drive')
+  ok(/min drive/.test(await q.locator('.trail-meta .away').first().textContent()), 'Near me shows the drive time')
+  await snap(q, `${OUT}/16-phone-near-me.png`)
+  await q.locator('.near-seg button', { hasText: '1 hour' }).click()
+  ok((await q.locator('.near-seg button.on').textContent()).includes('1 hour'), 'Near me widens to 1 hour')
+  await q.getByLabel('Search trails or places by name').fill('blindman')
+  await q.waitForSelector('.trail-list .trail-card', { timeout: 8000 })
+  ok((await q.locator('.trail-list .trail-name').allTextContents()).includes("Blindman's Corner"), 'name search uses the built-in map')
+  ok(!l6.some((l) => l.includes('overpass')), 'still no trail-server request')
+  await c6.close()
+}
 
 for (const [n, list] of layoutProblems) console.log('  layout:', n, '\n    ' + list.join('\n    '))
 ok(layoutProblems.size === 0, `nothing sticks out of its box at 390 px or 360 px (${layoutProblems.size} screens with problems)`)
