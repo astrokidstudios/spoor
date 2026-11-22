@@ -133,6 +133,8 @@ export function parseTrails(elements: OsmElement[]): Trail[] {
     const tags = el.tags ?? {}
     const name = tags.name || tags['name:en'] || tags.official_name || tags.alt_name || ''
     if (name && routeNames.has(name.toLowerCase())) continue
+    // Named farm and lodge roads (highway=track "LL Road 97", "River Fence Road") aren't trails.
+    if (name && tags.highway === 'track' && !tags.sac_scale && ROADISH.test(name)) continue
     const key = name ? `n:${name.toLowerCase()}` : `s:${tags.sac_scale ?? tags.highway}`
     const g = groups.get(key) ?? { tags: {}, lines: [], ids: [] }
     g.tags = { ...tags, ...g.tags, ...(name && !g.tags.name ? { name } : {}) }
@@ -170,6 +172,8 @@ export function parseTrails(elements: OsmElement[]): Trail[] {
   }
   return out.sort((a, b) => rankScore(b) - rankScore(a))
 }
+
+const ROADISH = /\b(road|rd|street|str|drive|avenue|ave|lane|boulevard|highway|driveway)\b/i
 
 interface Landmark { name: string; at: LatLng; weight: number }
 const markWeight = (t: Record<string, string>) =>
