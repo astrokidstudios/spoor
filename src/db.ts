@@ -173,5 +173,7 @@ db.version(1).stores({
 db.version(2).stores({ searches: 'id, at' })
 db.version(3).stores({ walks: 'id, startedAt, status', photos: 'id, walkId' })
 db.version(4).stores({ groups: 'id, createdAt' })
+// Trail names got better (paths named after nearby places): forget earlier searches so areas are looked up again with the new names.
+db.version(5).stores({}).upgrade((tx) => tx.table('searches').clear())
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)

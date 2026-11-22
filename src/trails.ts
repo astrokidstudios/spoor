@@ -33,6 +33,8 @@ export function trailQuery(b: BBox, timeout = 25) {
   node["amenity"="shelter"]["name"](${bb});
   node["highway"="trailhead"]["name"](${bb});
   node["mountain_pass"="yes"]["name"](${bb});
+  node["place"~"^(town|village|hamlet|locality|isolated_dwelling)$"]["name"](${bb});
+  node["tourism"~"^(hotel|guest_house|chalet)$"]["name"](${bb});
 );
 out tags geom;`
 }
@@ -151,15 +153,16 @@ export function parseTrails(elements: OsmElement[]): Trail[] {
         // "Path to Tugela Falls" if it ends at a named place; "Path near Cathkin Peak" if it passes one.
         const dest = g.tags.destination
         const mark = nearestMark(lines, marks)
-        const diff = difficulty(g.tags)?.label
+        const far = !dest && !mark && distanceKm >= 1.5 ? farMark(lines, marks) : null
         if (dest) name = `Path to ${dest}`
         else if (mark) name = `${mark.end ? 'Path to' : 'Path near'} ${mark.name}`
         else if (distanceKm < 1.5) continue // short scraps with nothing nearby: just clutter
-        else name = `${diff ?? 'Mountain'} path`
+        else if (far) name = `Path ${far.dir} of ${far.name}`
+        else name = 'Unnamed path'
         const n = (usedNames.get(name) ?? 0) + 1
         usedNames.set(name, n)
         if (n > 1) name = `${name} (${n})`
-        tags = { ...g.tags, 'trailz:named': mark || dest ? 'guessed' : 'none' }
+        tags = { ...g.tags, 'trailz:named': mark || dest || far ? 'guessed' : 'none' }
       }
       const bbox = bboxOf(lines)
       out.push({ id: `w${g.ids[0]}-${bbox[0].toFixed(3)}`, name: name!, kind: 'path', distanceKm, lines, bbox, tags, packIds: [], fetchedAt: now })
@@ -170,7 +173,7 @@ export function parseTrails(elements: OsmElement[]): Trail[] {
 
 interface Landmark { name: string; at: LatLng; weight: number }
 const markWeight = (t: Record<string, string>) =>
-  t.natural === 'peak' || t.natural === 'waterfall' || t.waterway === 'waterfall' ? 3 : t.tourism?.endsWith('hut') || t.natural === 'cave_entrance' || t.mountain_pass ? 2 : 1
+  t.place || t.tourism === 'hotel' || t.tourism === 'guest_house' || t.tourism === 'chalet' ? 0.5 : t.natural === 'peak' || t.natural === 'waterfall' || t.waterway === 'waterfall' ? 3 : t.tourism?.endsWith('hut') || t.natural === 'cave_entrance' || t.mountain_pass ? 2 : 1
 
 /** The best named place at the end of these lines (within 400 m), else the best one they pass (within 1 km). */
 function nearestMark(lines: LatLng[][], marks: Landmark[]): { name: string; end: boolean } | null {
@@ -191,6 +194,24 @@ function nearestMark(lines: LatLng[][], marks: Landmark[]): { name: string; end:
     if (s > (best?.s ?? -Infinity)) best = { name: m.name, end: false, s }
   }
   return best
+}
+
+/** For a long path with nothing close by: the nearest named place within 8 km, and which side of it the path is on. */
+function farMark(lines: LatLng[][], marks: Landmark[]): { name: string; dir: string } | null {
+  const all = lines.flat()
+  if (!all.length) return null
+  const mid: LatLng = [all.reduce((s, p) => s + p[0], 0) / all.length, all.reduce((s, p) => s + p[1], 0) / all.length]
+  let best: { m: Landmark; s: number } | null = null
+  for (const m of marks) {
+    const d = haversineKm(mid, m.at)
+    if (d > 8) continue
+    const sc = d - m.weight // bigger landmarks win over closer small ones
+    if (!best || sc < best.s) best = { m, s: sc }
+  }
+  if (!best) return null
+  const dy = mid[0] - best.m.at[0], dx = (mid[1] - best.m.at[1]) * Math.cos((mid[0] * Math.PI) / 180)
+  const dir = Math.abs(dy) > 2 * Math.abs(dx) ? (dy > 0 ? 'north' : 'south') : Math.abs(dx) > 2 * Math.abs(dy) ? (dx > 0 ? 'east' : 'west') : `${dy > 0 ? 'north' : 'south'}-${dx > 0 ? 'east' : 'west'}`
+  return { name: best.m.name, dir }
 }
 
 function clusters(lines: LatLng[][]): LatLng[][][] {
